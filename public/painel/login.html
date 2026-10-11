@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="login-body">
+
+  <div class="login-wrap">
+    <form class="login-cartao" id="formLogin">
+      <div class="login-marca"><i class="fas fa-calendar-check"></i> Painel de Agendamento</div>
+      <p class="login-sub">Dra. Edilaine Silva &middot; Suzano - SP</p>
+
+      <div id="msg" class="alerta" style="display:none"></div>
+
+      <button type="button" class="btn btn-google" id="btnGoogle">
+        <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.9 2.6 13.7l7.8 6.1C12.3 13.3 17.7 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-2.8-.4-4.1H24v7.8h12.5c-.3 2-1.6 5-4.6 7l7.1 5.5c4.2-3.9 7.1-9.6 7.1-16.2z"/>
+          <path fill="#FBBC05" d="M10.4 28.2c-.5-1.4-.8-2.9-.8-4.2s.3-2.8.8-4.2l-7.8-6.1C1 16.5 0 20.1 0 24s1 7.5 2.6 11.3l7.8-7.1z"/>
+          <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.3-5.6l-7.1-5.5c-2 1.3-4.6 2.2-8.2 2.2-6.3 0-11.7-3.8-13.8-9.1l-7.8 6.1C6.5 42.1 14.6 47.5 24 47.5z"/>
+        </svg>
+        Entrar com Google
+      </button>
+
+      <div class="divisor"><span>ou com e-mail</span></div>
+
+      <div class="form-linha">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" autocomplete="email" required>
+      </div>
+
+      <div class="form-linha">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" placeholder="Sua senha" autocomplete="current-password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primario btn-bloco">
+        <i class="fas fa-right-to-bracket"></i> Entrar
+      </button>
+
+      <p class="login-links">
+        <a href="cadastro.html">Criar conta</a><span>&middot;</span><a href="../">Voltar ao site</a>
+      </p>
+    </form>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script type="module">
+    import { loginComGoogle, loginComEmail, observarAuth, mensagemErro } from "./app.js";
+
+    const msg = document.getElementById("msg");
+    const aviso = (texto, tipo = "erro") => {
+      msg.style.display = "block";
+      msg.className = "alerta alerta-" + tipo;
+      msg.textContent = texto;
+    };
+
+    observarAuth((u) => { if (u) location.replace("dashboard.html"); });
+
+    document.getElementById("btnGoogle").addEventListener("click", async () => {
+      msg.style.display = "none";
+      try {
+        await loginComGoogle();
+        location.href = "dashboard.html";
+      } catch (e) {
+        aviso(mensagemErro(e));
+      }
+    });
+
+    document.getElementById("formLogin").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.style.display = "none";
+      try {
+        await loginComEmail(document.getElementById("email").value.trim(), document.getElementById("senha").value);
+        location.href = "dashboard.html";
+      } catch (er) {
+        aviso(mensagemErro(er));
+      }
+    });
+  </script>
+</body>
+</html>

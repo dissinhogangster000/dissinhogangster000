@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Servicos | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <div id="topo"></div>
+
+  <main class="conteudo">
+    <div class="cabecalho-pagina">
+      <h1>Servicos</h1>
+      <p>Tipos de atendimento disponiveis para agendar.</p>
+    </div>
+
+    <button class="btn btn-primario" id="btnNovo"><i class="fas fa-plus"></i> Novo servico</button>
+
+    <div id="tabela" class="gap-top">Carregando...</div>
+  </main>
+
+  <div id="modal" class="modal-fundo" hidden>
+    <div class="modal">
+      <h2 id="modalTitulo">Novo servico</h2>
+      <div id="modalMsg" class="alerta" style="display:none"></div>
+      <div class="form-linha">
+        <label for="sNome">Nome</label>
+        <input type="text" id="sNome" required>
+      </div>
+      <div class="form-linha">
+        <label for="sDesc">Descricao</label>
+        <textarea id="sDesc" placeholder="Breve descricao do atendimento"></textarea>
+      </div>
+      <div class="form-grid">
+        <div class="form-linha">
+          <label for="sDur">Duracao (min)</label>
+          <input type="number" id="sDur" value="60" min="15" step="15">
+        </div>
+        <div class="form-linha">
+          <label for="sPreco">Preco (R$)</label>
+          <input type="number" id="sPreco" value="0" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-linha">
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="sAtivo" checked style="width:auto"> Servico ativo
+        </label>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" id="btnCancelar">Cancelar</button>
+        <button class="btn btn-primario" id="btnSalvar"><i class="fas fa-check"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { iniciarPagina, toast } from "./layout.js";
+    import { listarServicos, salvarServico, excluirServico, formatarMoeda, escaparHtml, mensagemErro } from "./app.js";
+
+    await iniciarPagina("servicos");
+    const tabela = document.getElementById("tabela");
+    const modal = document.getElementById("modal");
+    const modalMsg = document.getElementById("modalMsg");
+    let edicao = null;
+
+    async function carregar() {
+      const lista = await listarServicos(true);
+      tabela.innerHTML = lista.length ? `
+        <div class="tabela-envolve"><table>
+          <thead><tr><th>Nome</th><th>Descricao</th><th>Duracao</th><th>Preco</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            ${lista.map((s) => `
+              <tr>
+                <td><strong>${escaparHtml(s.nome)}</strong></td>
+                <td>${escaparHtml(s.descricao || "-")}</td>
+                <td>${s.duracaoMin} min</td>
+                <td>${formatarMoeda(s.preco)}</td>
+                <td><span class="etiqueta ${s.ativo ? "etiqueta-confirmado" : "etiqueta-cancelado"}">${s.ativo ? "ativo" : "inativo"}</span></td>
+                <td>
+                  <div class="acoes">
+                    <button class="btn btn-secundario btn-sm" data-edit="${escaparHtml(s.id)}">Editar</button>
+                    <button class="btn btn-perigo btn-sm" data-del="${escaparHtml(s.id)}">Excluir</button>
+                  </div>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table></div>` : `<div class="cartao"><div class="vazio"><i class="fas fa-hand-holding-heart"></i>Nenhum servico cadastrado.</div></div>`;
+
+      tabela.querySelectorAll("[data-edit]").forEach((b) =>
+        b.onclick = async () => {
+          const s = (await listarServicos(true)).find((x) => x.id === b.dataset.edit);
+          edicao = s;
+          document.getElementById("modalTitulo").textContent = "Editar servico";
+          document.getElementById("sNome").value = s.nome;
+          document.getElementById("sDesc").value = s.descricao || "";
+          document.getElementById("sDur").value = s.duracaoMin;
+          document.getElementById("sPreco").value = s.preco;
+          document.getElementById("sAtivo").checked = !!s.ativo;
+          modalMsg.style.display = "none";
+          modal.hidden = false;
+        }
+      );
+
+      tabela.querySelectorAll("[data-del]").forEach((b) =>
+        b.onclick = async () => {
+          if (!confirm("Excluir este servico?")) return;
+          try {
+            await excluirServico(b.dataset.del);
+            toast("Servico excluido.");
+            carregar();
+          } catch (e) { toast(mensagemErro(e), "erro"); }
+        }
+      );
+    }
+
+    document.getElementById("btnNovo").onclick = () => {
+      edicao = null;
+      document.getElementById("modalTitulo").textContent = "Novo servico";
+      document.getElementById("sNome").value = "";
+      document.getElementById("sDesc").value = "";
+      document.getElementById("sDur").value = 60;
+      document.getElementById("sPreco").value = 0;
+      document.getElementById("sAtivo").checked = true;
+      modalMsg.style.display = "none";
+      modal.hidden = false;
+    };
+
+    document.getElementById("btnCancelar").onclick = () => { modal.hidden = true; };
+
+    document.getElementById("btnSalvar").onclick = async () => {
+      const nome = document.getElementById("sNome").value.trim();
+      if (!nome) {
+        modalMsg.style.display = "block";
+        modalMsg.className = "alerta alerta-erro";
+        modalMsg.textContent = "Informe o nome do servico.";
+        return;
+      }
+      try {
+        await salvarServico({
+          id: edicao?.id,
+          nome,
+          descricao: document.getElementById("sDesc").value.trim(),
+          duracaoMin: document.getElementById("sDur").value,
+          preco: document.getElementById("sPreco").value,
+          ativo: document.getElementById("sAtivo").checked
+        });
+        modal.hidden = true;
+        toast("Servico salvo.");
+        carregar();
+      } catch (e) {
+        modalMsg.style.display = "block";
+        modalMsg.className = "alerta alerta-erro";
+        modalMsg.textContent = mensagemErro(e);
+      }
+    };
+
+    carregar();
+  </script>
+</body>
+</html>

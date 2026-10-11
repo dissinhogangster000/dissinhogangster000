@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <div id="topo"></div>
+
+  <main class="conteudo">
+    <div class="cabecalho-pagina">
+      <h1>Painel</h1>
+      <p id="saudacao">Carregando...</p>
+    </div>
+
+    <div class="indicadores">
+      <div class="indicador"><span>Hoje</span><strong id="kpiHoje">0</strong></div>
+      <div class="indicador"><span>Aguardando confirmacao</span><strong id="kpiPendente">0</strong></div>
+      <div class="indicador"><span>Confirmados no mes</span><strong id="kpiConfirmado">0</strong></div>
+      <div class="indicador"><span>Servicos ativos</span><strong id="kpiServicos">0</strong></div>
+    </div>
+
+    <div class="cartao">
+      <h2><i class="fas fa-calendar-day"></i> Agenda de hoje</h2>
+      <div id="hoje" class="carregando">Carregando...</div>
+    </div>
+
+    <div class="cartao">
+      <h2><i class="fas fa-list-check"></i> Proximos agendamentos</h2>
+      <div id="proximos" class="carregando">Carregando...</div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { iniciarPagina, toast } from "./layout.js";
+    import { listarAgendamentos, listarServicos, hojeISO, formatarDataBR, formatarMoeda, escaparHtml } from "./app.js";
+
+    const usuario = await iniciarPagina("dashboard");
+    if (!usuario) throw new Error("sem sessao");
+
+    document.getElementById("saudacao").textContent =
+      `Ola, ${(usuario.displayName || usuario.email || "").trim()} - ${formatarDataBR(hojeISO())}`;
+
+    const hoje = hojeISO();
+    const mesAtual = hoje.slice(0, 7);
+
+    const todos = await listarAgendamentos();
+    const servicos = await listarServicos();
+
+    const doDia = todos.filter((a) => a.data === hoje && a.status !== "cancelado")
+      .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+
+    document.getElementById("kpiHoje").textContent = doDia.length;
+    document.getElementById("kpiPendente").textContent = todos.filter((a) => a.status === "pendente").length;
+    document.getElementById("kpiConfirmado").textContent = todos.filter(
+      (a) => a.status === "confirmado" && a.data.startsWith(mesAtual)
+    ).length;
+    document.getElementById("kpiServicos").textContent = servicos.length;
+
+    const linha = (a) => `
+      <tr>
+        <td><strong>${escaparHtml(a.horaInicio)}</strong></td>
+        <td>${escaparHtml(a.clienteNome)}</td>
+        <td>${escaparHtml(a.servicoNome || "-")}</td>
+        <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span></td>
+        <td>${formatarMoeda(a.valor)}</td>
+      </tr>`;
+
+    document.getElementById("hoje").innerHTML = doDia.length
+      ? `<div class="tabela-envolve"><table>
+          <thead><tr><th>Hora</th><th>Cliente</th><th>Servico</th><th>Status</th><th>Valor</th></tr></thead>
+          <tbody>${doDia.map(linha).join("")}</tbody>
+        </table></div>`
+      : `<div class="vazio"><i class="fas fa-calendar-xmark"></i>Nenhum agendamento para hoje.</div>`;
+
+    const futuros = todos
+      .filter((a) => a.data >= hoje && a.status !== "cancelado")
+      .sort((a, b) => (a.data + a.horaInicio).localeCompare(b.data + b.horaInicio))
+      .slice(0, 10);
+
+    document.getElementById("proximos").innerHTML = futuros.length
+      ? `<div class="tabela-envolve"><table>
+          <thead><tr><th>Data</th><th>Hora</th><th>Cliente</th><th>Servico</th><th>Status</th></tr></thead>
+          <tbody>${futuros.map((a) => `
+            <tr>
+              <td>${formatarDataBR(a.data)}</td>
+              <td>${escaparHtml(a.horaInicio)}</td>
+              <td>${escaparHtml(a.clienteNome)}</td>
+              <td>${escaparHtml(a.servicoNome || "-")}</td>
+              <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span>
+                  ${a.googleEventId ? ' <span class="selo-sync"><i class="fas fa-check"></i> Agenda</span>' : ""}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table></div>`
+      : `<div class="vazio"><i class="fas fa-inbox"></i>Nenhum agendamento futuro.</div>`;
+  </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar conta | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="login-body">
+
+  <div class="login-wrap">
+    <form class="login-cartao" id="formCadastro">
+      <div class="login-marca"><i class="fas fa-calendar-check"></i> Painel de Agendamento</div>
+      <p class="login-sub">Crie sua conta de acesso</p>
+
+      <div id="msg" class="alerta" style="display:none"></div>
+
+      <div class="form-linha">
+        <label for="nome">Nome completo</label>
+        <input type="text" id="nome" placeholder="Seu nome" autocomplete="name" required>
+      </div>
+
+      <div class="form-linha">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" autocomplete="email" required>
+      </div>
+
+      <div class="form-linha">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" placeholder="Minimo 6 caracteres" autocomplete="new-password" required>
+      </div>
+
+      <div class="form-linha">
+        <label for="confirmar">Confirmar senha</label>
+        <input type="password" id="confirmar" placeholder="Repita a senha" autocomplete="new-password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primario btn-bloco">
+        <i class="fas fa-user-plus"></i> Criar conta
+      </button>
+
+      <p class="login-links">
+        <a href="login.html">Ja tenho conta</a><span>&middot;</span><a href="../">Voltar ao site</a>
+      </p>
+    </form>
+  </div>
+
+  <script type="module">
+    import { cadastrar, observarAuth, mensagemErro } from "./app.js";
+
+    const msg = document.getElementById("msg");
+    const aviso = (texto, tipo = "erro") => {
+      msg.style.display = "block";
+      msg.className = "alerta alerta-" + tipo;
+      msg.textContent = texto;
+    };
+
+    observarAuth((u) => { if (u) location.replace("dashboard.html"); });
+
+    document.getElementById("formCadastro").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.style.display = "none";
+
+      const nome = document.getElementById("nome").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const senha = document.getElementById("senha").value;
+      const confirmar = document.getElementById("confirmar").value;
+
+      if (senha !== confirmar) return aviso("As senhas nao coincidem.");
+      if (senha.length < 6) return aviso("A senha deve ter no minimo 6 caracteres.");
+
+      try {
+        await cadastrar(nome, email, senha);
+        location.href = "dashboard.html";
+      } catch (er) {
+        aviso(mensagemErro(er));
+      }
+    });
+  </script>
+</body>
+</html>

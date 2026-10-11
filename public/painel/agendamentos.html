@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agendamentos | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <div id="topo"></div>
+
+  <main class="conteudo">
+    <div class="cabecalho-pagina">
+      <h1>Agendamentos</h1>
+      <p>Todos os consultations com filtros e status.</p>
+    </div>
+
+    <div class="barra-filtros">
+      <div class="campo">
+        <label for="fData">Data</label>
+        <input type="date" id="fData">
+      </div>
+      <div class="campo">
+        <label for="fStatus">Status</label>
+        <select id="fStatus">
+          <option value="">Todos</option>
+          <option value="pendente">Pendente</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="concluido">Concluido</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <button class="btn btn-primario" id="btnBuscar"><i class="fas fa-filter"></i> Filtrar</button>
+      <button class="btn btn-secundario" id="btnLimpar">Limpar</button>
+    </div>
+
+    <div id="tabela" class="carregando">Carregando...</div>
+  </main>
+
+  <script type="module">
+    import { iniciarPagina, toast } from "./layout.js";
+    import {
+      listarAgendamentos, definirStatus, excluirAgendamento,
+      formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
+    } from "./app.js";
+    import { obterToken, removerEvento } from "./google-agenda.js";
+
+    await iniciarPagina("agendamentos");
+    const tabela = document.getElementById("tabela");
+
+    async function carregar() {
+      tabela.innerHTML = '<div class="carregando">Carregando...</div>';
+      const data = document.getElementById("fData").value;
+      const status = document.getElementById("fStatus").value;
+
+      let lista = await listarAgendamentos({ data: data || undefined, status: status || undefined });
+      lista.sort((a, b) => (b.data + b.horaInicio).localeCompare(a.data + a.horaInicio));
+
+      if (!lista.length) {
+        tabela.innerHTML = '<div class="cartao"><div class="vazio"><i class="fas fa-inbox"></i>Nenhum agendamento encontrado.</div></div>';
+        return;
+      }
+
+      tabela.innerHTML = `
+        <div class="tabela-envolve"><table>
+          <thead><tr>
+            <th>Data</th><th>Hora</th><th>Cliente</th><th>Contato</th>
+            <th>Servico</th><th>Valor</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${lista.map((a) => `
+              <tr>
+                <td>${formatarDataBR(a.data)}</td>
+                <td>${escaparHtml(a.horaInicio)}</td>
+                <td><strong>${escaparHtml(a.clienteNome)}</strong></td>
+                <td>
+                  ${a.clienteTelefone ? `<a class="link-suave" target="_blank" rel="noopener" href="https://wa.me/55${escaparHtml(a.clienteTelefone.replace(/\D/g, ""))}">${escaparHtml(a.clienteTelefone)}</a>` : "-"}
+                  ${a.googleEventId ? ' <span class="selo-sync"><i class="fab fa-google"></i> Agenda</span>' : ""}
+                </td>
+                <td>${escaparHtml(a.servicoNome || "-")}</td>
+                <td>${formatarMoeda(a.valor)}</td>
+                <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span></td>
+                <td>
+                  <div class="acoes">
+                    ${a.status === "pendente" ? `<button class="btn btn-sucesso btn-sm" data-st="${a.id}" data-valor="confirmado">Confirmar</button>` : ""}
+                    ${a.status === "confirmado" ? `<button class="btn btn-secundario btn-sm" data-st="${a.id}" data-valor="concluido">Concluir</button>` : ""}
+                    <a class="btn btn-secundario btn-sm" href="wa.me/55${escaparHtml((a.clienteTelefone || "").replace(/\D/g, ""))}" target="_blank" rel="noopener">WhatsApp</a>
+                    <button class="btn btn-perigo btn-sm" data-del="${a.id}">Excluir</button>
+                  </div>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table></div>`;
+
+      tabela.querySelectorAll("[data-st]").forEach((b) =>
+        b.onclick = async () => { await definirStatus(b.dataset.st, b.dataset.valor); toast("Status atualizado."); carregar(); }
+      );
+
+      tabela.querySelectorAll("[data-del]").forEach((b) =>
+        b.onclick = async () => {
+          if (!confirm("Excluir este agendamento?")) return;
+          try {
+            const alvo = lista.find((x) => x.id === b.dataset.del);
+            if (alvo?.googleEventId) {
+              try { await removerEvento(alvo.googleEventId, await obterToken(true)); } catch {}
+            }
+            await excluirAgendamento(b.dataset.del);
+            toast("Agendamento excluido.");
+            carregar();
+          } catch (e) {
+            toast(mensagemErro(e), "erro");
+          }
+        }
+      );
+    }
+
+    document.getElementById("btnBuscar").onclick = carregar;
+    document.getElementById("fStatus").onchange = carregar;
+    document.getElementById("btnLimpar").onclick = () => {
+      document.getElementById("fData").value = "";
+      document.getElementById("fStatus").value = "";
+      carregar();
+    };
+
+    carregar();
+  </script>
+</body>
+</html>

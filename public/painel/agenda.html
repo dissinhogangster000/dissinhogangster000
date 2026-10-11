@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <div id="topo"></div>
+
+  <main class="conteudo">
+    <div class="cabecalho-pagina">
+      <h1>Agenda</h1>
+      <p>Escolha a data para ver os horarios marcados.</p>
+    </div>
+
+    <div class="barra-filtros">
+      <div class="campo">
+        <label for="data">Data</label>
+        <input type="date" id="data">
+      </div>
+      <button class="btn btn-primario" id="btnNovo"><i class="fas fa-plus"></i> Novo agendamento</button>
+      <button class="btn btn-secundario" id="btnSync"><i class="fab fa-google"></i> Ver na Google Agenda</button>
+    </div>
+
+    <div class="cartao">
+      <h2><i class="fas fa-clock"></i> Horarios do dia</h2>
+      <div id="grade" class="carregando">Carregando...</div>
+    </div>
+
+    <div class="cartao">
+      <h2><i class="fab fa-google"></i> Eventos na Google Agenda</h2>
+      <div id="google" class="carregando">Clique em "Ver na Google Agenda" para carregar.</div>
+    </div>
+  </main>
+
+  <div id="modal" class="modal-fundo" hidden>
+    <div class="modal">
+      <h2>Novo agendamento</h2>
+      <div id="modalMsg" class="alerta" style="display:none"></div>
+      <div class="form-grid">
+        <div class="form-linha col-2">
+          <label for="mCliente">Cliente</label>
+          <input type="text" id="mCliente" required>
+        </div>
+        <div class="form-linha">
+          <label for="mTelefone">Telefone</label>
+          <input type="text" id="mTelefone">
+        </div>
+        <div class="form-linha">
+          <label for="mEmail">E-mail</label>
+          <input type="email" id="mEmail">
+        </div>
+        <div class="form-linha col-2">
+          <label for="mServico">Servico</label>
+          <select id="mServico"></select>
+        </div>
+        <div class="form-linha">
+          <label for="mData">Data</label>
+          <input type="date" id="mData" required>
+        </div>
+        <div class="form-linha">
+          <label for="mHora">Horario</label>
+          <input type="time" id="mHora" value="09:00" step="1800" required>
+        </div>
+        <div class="form-linha col-2">
+          <label for="mObs">Observacoes</label>
+          <textarea id="mObs" placeholder="Anotacoes internas"></textarea>
+        </div>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" id="btnCancelar">Cancelar</button>
+        <button class="btn btn-primario" id="btnSalvar"><i class="fas fa-check"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { iniciarPagina, toast } from "./layout.js";
+    import {
+      listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
+      hojeISO, somarMinutos, formatarDataBR, escaparHtml, mensagemErro
+    } from "./app.js";
+    import { obterToken, criarEvento, listarEventosDoDia, resumoEvento } from "./google-agenda.js";
+
+    await iniciarPagina("agenda");
+    let servicos = [];
+
+    const campoData = document.getElementById("data");
+    const grade = document.getElementById("grade");
+    const boxGoogle = document.getElementById("google");
+    const modal = document.getElementById("modal");
+    const modalMsg = document.getElementById("modalMsg");
+
+    campoData.value = hojeISO();
+    servicos = await listarServicos();
+
+    document.getElementById("mServico").innerHTML =
+      '<option value="">Selecione um servico</option>' +
+      servicos.map((s) => `<option value="${escaparHtml(s.id)}">${escaparHtml(s.nome)} (${s.duracaoMin}min)</option>`).join("");
+
+    const gerarHorarios = () => {
+      const horas = [];
+      for (let h = 8; h < 20; h++) horas.push(`${String(h).padStart(2, "0")}:00`, `${String(h).padStart(2, "0")}:30`);
+      return horas;
+    };
+
+    async function pintar() {
+      const data = campoData.value || hojeISO();
+      grade.innerHTML = '<div class="carregando">Carregando...</div>';
+      const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+
+      grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
+        const ag = lista.find((a) => a.horaInicio === h);
+        if (!ag) return `<div class="horario"><div class="h">${h}</div><div class="c">Livre</div></div>`;
+        return `<div class="horario ocupado">
+            <div class="h">${h}</div>
+            <div class="c">${escaparHtml(ag.clienteNome)}<br>${escaparHtml(ag.servicoNome || "")}</div>
+            <div class="s">${escaparHtml(ag.status)}</div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              ${ag.status === "pendente" ? `<button class="btn btn-sucesso btn-sm" data-confirmar="${ag.id}">Confirmar</button>` : ""}
+              <button class="btn btn-perigo btn-sm" data-cancelar="${ag.id}">Cancelar</button>
+            </div>
+          </div>`;
+      }).join("")}</div>`;
+
+      grade.querySelectorAll("[data-confirmar]").forEach((b) =>
+        b.onclick = async () => { await definirStatus(b.dataset.confirmar, "confirmado"); toast("Agendamento confirmado."); pintar(); }
+      );
+      grade.querySelectorAll("[data-cancelar]").forEach((b) =>
+        b.onclick = async () => { await definirStatus(b.dataset.cancelar, "cancelado"); toast("Agendamento cancelado.", "aviso"); pintar(); }
+      );
+    }
+
+    campoData.addEventListener("change", pintar);
+    pintar();
+
+    document.getElementById("btnSync").addEventListener("click", async () => {
+      boxGoogle.innerHTML = '<div class="carregando">Autorizando com o Google...</div>';
+      try {
+        const token = await obterToken(false);
+        const eventos = await listarEventosDoDia(campoData.value || hojeISO(), token);
+        boxGoogle.innerHTML = eventos.length
+          ? `<div class="grade-dia">${eventos.map((ev) => {
+              const r = resumoEvento(ev);
+              return `<div class="horario"><div class="h">${escaparHtml(r.hora)}</div><div class="c">${escaparHtml(r.titulo)}</div></div>`;
+            }).join("")}</div>`
+          : `<div class="vazio"><i class="fab fa-google"></i>Nenhum evento na Google Agenda nesta data.</div>`;
+      } catch (e) {
+        boxGoogle.innerHTML = `<div class="alerta alerta-erro">${escaparHtml(mensagemErro(e))}</div>`;
+      }
+    });
+
+    document.getElementById("btnNovo").addEventListener("click", () => {
+      modal.hidden = false;
+      modalMsg.style.display = "none";
+      document.getElementById("mData").value = campoData.value || hojeISO();
+      document.getElementById("mHora").value = "09:00";
+    });
+
+    document.getElementById("btnCancelar").addEventListener("click", () => { modal.hidden = true; });
+
+    document.getElementById("btnSalvar").addEventListener("click", async () => {
+      const aviso = (t, k = "erro") => {
+        modalMsg.style.display = "block";
+        modalMsg.className = "alerta alerta-" + k;
+        modalMsg.textContent = t;
+      };
+
+      const cliente = document.getElementById("mCliente").value.trim();
+      const data = document.getElementById("mData").value;
+      const hora = document.getElementById("mHora").value;
+      if (!cliente || !data || !hora) return aviso("Preencha cliente, data e horario.");
+
+      const servicoId = document.getElementById("mServico").value;
+      const servico = servicos.find((s) => s.id === servicoId);
+
+      const ag = {
+        clienteNome: cliente,
+        clienteTelefone: document.getElementById("mTelefone").value.trim(),
+        clienteEmail: document.getElementById("mEmail").value.trim(),
+        servicoId,
+        servicoNome: servico ? servico.nome : "",
+        data,
+        horaInicio: hora,
+        horaFim: somarMinutos(hora, servico ? servico.duracaoMin : 60),
+        status: "pendente",
+        valor: servico ? servico.preco : 0,
+        observacoes: document.getElementById("mObs").value.trim()
+      };
+
+      try {
+        let salvarGoogle = false;
+        try {
+          salvarGoogle = confirm("Adicionar tambem na sua Google Agenda?");
+        } catch {}
+        if (salvarGoogle) {
+          try {
+            const token = await obterToken(false);
+            const ev = await criarEvento(ag, token);
+            ag.googleEventId = ev.id;
+          } catch (e) {
+            aviso("Salvo aqui, mas nao na Google Agenda: " + mensagemErro(e), "aviso");
+          }
+        }
+
+        await salvarAgendamento(ag);
+        modal.hidden = true;
+        toast("Agendamento criado.");
+        pintar();
+      } catch (e) {
+        aviso(mensagemErro(e));
+      }
+    });
+  </script>
+</body>
+</html>
