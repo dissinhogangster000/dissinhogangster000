@@ -10,22 +10,52 @@ const API = "https://www.googleapis.com/calendar/v3";
 const TZ = "America/Sao_Paulo";
 
 let tokenClient = null;
+let gisPronto = null;
 
-function temGis() {
+export function temGis() {
   return !!window.google?.accounts?.oauth2;
 }
 
-function garantirTokenClient() {
-  if (!temGis()) {
-    const e = new Error("Google Identity Services nao carregou.");
-    e.code = "gis-nao-carregado";
-    throw e;
-  }
+/** Carrega o Google Identity Services sob demanda (preciso em qualquer pagina). */
+export function carregarGis() {
+  if (temGis()) return Promise.resolve(true);
+  if (gisPronto) return gisPronto;
+
+  gisPronto = new Promise((resolve) => {
+    if (document.querySelector('script[data-gis]')) {
+      const t = setInterval(() => {
+        if (temGis()) { clearInterval(t); resolve(true); }
+      }, 100);
+      setTimeout(() => { clearInterval(t); resolve(temGis()); }, 10000);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.defer = true;
+    s.dataset.gis = "1";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+
+  return gisPronto;
+}
+
+async function garantirTokenClient() {
   if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith("COLE_AQUI")) {
     const e = new Error("Configure o GOOGLE_CLIENT_ID em config.js");
     e.code = "missing-client-id";
     throw e;
   }
+
+  await carregarGis();
+  if (!temGis()) {
+    const e = new Error("Google Identity Services nao carregou. Verifique a conexao e tente de novo.");
+    e.code = "gis-nao-carregado";
+    throw e;
+  }
+
   if (!tokenClient) {
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
@@ -41,7 +71,11 @@ function temEscopos(resultado) {
   return SCOPES.split(" ").every((esc) => s.includes(esc));
 }
 
-/** Pega access token do Google. cached=true reutiliza se ja vier com escopos. */
+/**
+ * Pega access token do Google.
+ * Se o login com Google ja trouxer os escopos de calendario, usa direto.
+ * Senao pede autorizacao extra ao Google (GIS).
+ */
 export async function obterToken(cached = false) {
   const user = getAuth().currentUser;
   if (!user) {
@@ -51,16 +85,20 @@ export async function obterToken(cached = false) {
   }
 
   const resultado = await user.getIdTokenResult();
-  if (cached && temEscopos(resultado)) return resultado.accessToken;
+  if (temEscopos(resultado)) return resultado.accessToken;
+  if (cached) return null;
 
   return new Promise((resolve, reject) => {
-    const client = garantirTokenClient();
-    client.callback = (resp) => {
-      if (resp?.error) reject(new Error(resp.error));
-      else if (resp?.access_token) resolve(resp.access_token);
-      else reject(new Error("Nao foi possivel obter autorizacao do Google."));
-    };
-    client.requestAccessToken({ prompt: cached ? "" : "consent" });
+    garantirTokenClient()
+      .then((client) => {
+        client.callback = (resp) => {
+          if (resp?.error) reject(new Error(resp.error));
+          else if (resp?.access_token) resolve(resp.access_token);
+          else reject(new Error("Nao foi possivel obter autorizacao do Google."));
+        };
+        client.requestAccessToken({ prompt: cached ? "" : "consent" });
+      })
+      .catch(reject);
   });
 }
 

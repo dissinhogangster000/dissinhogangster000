@@ -70,6 +70,12 @@
           <label for="mObs">Observacoes</label>
           <textarea id="mObs" placeholder="Anotacoes internas"></textarea>
         </div>
+        <div class="form-linha col-2">
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="mGoogle" checked style="width:auto">
+            <i class="fab fa-google" style="color:#4285F4"></i> Adicionar tambem na Google Agenda
+          </label>
+        </div>
       </div>
       <div class="modal-acoes">
         <button class="btn btn-secundario" id="btnCancelar">Cancelar</button>
@@ -142,6 +148,10 @@
       boxGoogle.innerHTML = '<div class="carregando">Autorizando com o Google...</div>';
       try {
         const token = await obterToken(false);
+        if (!token) {
+          boxGoogle.innerHTML = `<div class="alerta alerta-aviso">Sua conta nao tem acesso ao calendario. Entre com "Entrar com Google" ou use um e-mail@gmail.com para liberar a Google Agenda.</div>`;
+          return;
+        }
         const eventos = await listarEventosDoDia(campoData.value || hojeISO(), token);
         boxGoogle.innerHTML = eventos.length
           ? `<div class="grade-dia">${eventos.map((ev) => {
@@ -193,15 +203,17 @@
       };
 
       try {
-        let salvarGoogle = false;
-        try {
-          salvarGoogle = confirm("Adicionar tambem na sua Google Agenda?");
-        } catch {}
-        if (salvarGoogle) {
+        let salvouGoogle = false;
+        if (document.getElementById("mGoogle").checked) {
           try {
             const token = await obterToken(false);
-            const ev = await criarEvento(ag, token);
-            ag.googleEventId = ev.id;
+            if (token) {
+              const ev = await criarEvento(ag, token);
+              ag.googleEventId = ev.id;
+              salvouGoogle = true;
+            } else {
+              aviso("Sem acesso ao calendario. Salvo aqui, mas nao foi para a Google Agenda.", "aviso");
+            }
           } catch (e) {
             aviso("Salvo aqui, mas nao na Google Agenda: " + mensagemErro(e), "aviso");
           }
@@ -209,7 +221,7 @@
 
         await salvarAgendamento(ag);
         modal.hidden = true;
-        toast("Agendamento criado.");
+        toast(salvouGoogle ? "Agendamento criado e sincronizado com a Google Agenda." : "Agendamento criado.");
         pintar();
       } catch (e) {
         aviso(mensagemErro(e));

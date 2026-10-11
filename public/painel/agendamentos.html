@@ -104,7 +104,10 @@
           try {
             const alvo = lista.find((x) => x.id === b.dataset.del);
             if (alvo?.googleEventId) {
-              try { await removerEvento(alvo.googleEventId, await obterToken(true)); } catch {}
+              try {
+                const t = await obterToken(true);
+                if (t) await removerEvento(alvo.googleEventId, t);
+              } catch {}
             }
             await excluirAgendamento(b.dataset.del);
             toast("Agendamento excluido.");
