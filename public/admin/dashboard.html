@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Painel Agendamento</title>
+  <link rel="stylesheet" href="../painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-titulo"><i class="fas fa-calendar-check"></i> Painel de Agendamento</div>
+    <nav class="topbar-nav">
+      <a class="ativo" href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a>
+      <a href="agenda.html"><i class="fas fa-calendar-day"></i> Agenda</a>
+      <a href="agendamentos.html"><i class="fas fa-list-check"></i> Agendamentos</a>
+      <a href="servicos.html"><i class="fas fa-hand-holding-heart"></i> Serviços</a>
+      <button id="btnLogout" class="btn btn-outline"><i class="fas fa-right-from-bracket"></i> Sair</button>
+    </nav>
+  </header>
+  <main class="container">
+    <div class="cartao">
+      <h2>Dashboard</h2>
+      <p id="boasVindas">Carregando...</p>
+    </div>
+    <div class="cartao">
+      <h3><i class="fas fa-clock"></i> Próximos agendamentos</h3>
+      <div id="proximos"></div>
+    </div>
+  </main>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { getFirestore, collection, query, where, orderBy, limit, getDocs, doc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { firebaseConfig } from "./firebase-config.js";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const boasVindas = document.getElementById("boasVindas");
+    const proximos = document.getElementById("proximos");
+    onAuthStateChanged(auth, async u => {
+      if (!u) { window.location.href = "login.html"; return; }
+      boasVindas.textContent = `Olá, ${u.displayName || u.email}`;
+      const hoje = new Date();
+      const hojeStr = hoje.toISOString().split("T")[0];
+      const q = query(collection(db,"agendamentos"), where("data","==",hojeStr), orderBy("horaInicio"));
+      const snap = await getDocs(q);
+      if (snap.empty) { proximos.innerHTML = "<p>Nenhum agendamento para hoje.</p>"; return; }
+      let html = "<div class='lista'>";
+      snap.forEach(d => { const a=d.data(); html += `<div class='item'><strong>${a.clienteNome}</strong> - ${a.servicoNome || ""}<br><small>${a.horaInicio} - ${a.horaFim}</small></div>`; });
+      html += "</div>";
+      proximos.innerHTML = html;
+    });
+    document.getElementById("btnLogout").onclick = () => signOut(auth);
+  </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "psicologia-suzano",
+  "version": "1.0.0",
+  "description": "",
+  "main": "painel-js.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dissinhogangster000/dissinhogangster000.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dissinhogangster000/dissinhogangster000/issues"
+  },
+  "homepage": "https://github.com/dissinhogangster000/dissinhogangster000#readme",
+  "dependencies": {
+    "firebase": "^13.0.0"
+  }
+}

@@ -1,0 +1,70 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro | Painel Agendamento</title>
+  <link rel="stylesheet" href="../painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <form id="cadForm" class="login-cartao" novalidate>
+      <div class="login-marca"><i class="fas fa-calendar-check"></i> Painel de Agendamento</div>
+      <h2 style="text-align:center">Criar conta</h2>
+      <div id="msg" class="alerta" style="display:none"></div>
+      <div class="form-linha">
+        <label>Nome completo
+          <input type="text" id="nome" required placeholder="Seu nome">
+        </label>
+      </div>
+      <div class="form-linha">
+        <label>E-mail
+          <input type="email" id="email" required placeholder="seu@email.com">
+        </label>
+      </div>
+      <div class="form-linha">
+        <label>Senha
+          <input type="password" id="senha" required placeholder="Mínimo 6 caracteres">
+        </label>
+      </div>
+      <div class="form-linha">
+        <label>Confirmar senha
+          <input type="password" id="confirmar" required placeholder="Digite novamente">
+        </label>
+      </div>
+      <button class="btn btn-primario" type="submit"><i class="fas fa-user-plus"></i> Cadastrar</button>
+      <a class="btn" href="login.html" style="text-align:center;text-decoration:none;display:block"><i class="fas fa-arrow-left"></i> Já tenho conta</a>
+    </form>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { firebaseConfig } from "./firebase-config.js";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    onAuthStateChanged(auth, u => { if (u) window.location.href = "dashboard.html"; });
+    document.getElementById("cadForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const nome = document.getElementById("nome").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const senha = document.getElementById("senha").value;
+      const confirmar = document.getElementById("confirmar").value;
+      const msg = document.getElementById("msg");
+      if (senha !== confirmar) { msg.style.display="block"; msg.className="alerta alerta-erro"; msg.textContent="Senhas não coincidem."; return; }
+      if (senha.length < 6) { msg.style.display="block"; msg.className="alerta alerta-erro"; msg.textContent="Senha deve ter pelo menos 6 caracteres."; return; }
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, senha);
+        await updateProfile(cred.user, { displayName: nome });
+        await setDoc(doc(db, "usuarios", cred.user.uid), { nome, email, criadoEm: Date.now(), tipo: "admin" });
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        msg.style.display="block"; msg.className="alerta alerta-erro"; msg.textContent = "Erro ao cadastrar: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
