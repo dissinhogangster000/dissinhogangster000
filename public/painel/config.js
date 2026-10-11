@@ -8,5 +8,5 @@ export const firebaseConfig = {
 };
 
 // Client ID do Google OAuth (Google Cloud Console > APIs e Services > Credentials)
-// Preencha com o seu para ativar o login com Google e a Google Agenda.
-export const GOOGLE_CLIENT_ID = "COLE_AQUI_SEU_CLIENT_ID.apps.googleusercontent.com";
+// Usado no login com Google e na integracao com a Google Agenda.
+export const GOOGLE_CLIENT_ID = "180412479351-tm8fjkqtsrvqiuitto3tpskcr09q43b6.apps.googleusercontent.com";
