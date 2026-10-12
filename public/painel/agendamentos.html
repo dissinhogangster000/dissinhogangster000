@@ -49,14 +49,8 @@
           <input type="text" id="mailChave" placeholder="access key">
         </div>
       </div>
-      <div class="form-linha">
-        <label style="display:flex;align-items:center;gap:8px">
-          <input type="email" id="mailTeste" placeholder="teste@email.com" style="flex:1">
-        </label>
-      </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primario" id="btnMailSalvar"><i class="fas fa-check"></i> Salvar</button>
-        <button class="btn btn-secundario" id="btnMailTestar"><i class="fas fa-paper-plane"></i> Enviar teste</button>
       </div>
       <small style="color:#6b6b7b;display:block;margin-top:12px">
           A confirmacao vai para o <strong>e-mail do cliente</strong> cadastrado no agendamento.
@@ -74,7 +68,7 @@
     import {
       listarAgendamentos, definirStatus, excluirAgendamento, salvarAgendamento,
       listarSolicitacoes, resolverSolicitacao, somarMinutos,
-      mensagemConfirmacao, linkWhatsApp, enviarEmailConfirmacao, enviarEmailTeste,
+      mensagemConfirmacao, linkWhatsApp, enviarEmailConfirmacao,
       carregarConfigEmail, salvarConfigEmail, emailConfigurado,
       formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
     } from "./app.js";
@@ -90,7 +84,6 @@
 
     document.getElementById("mailDestino").value = cfg.destino || "";
     document.getElementById("mailChave").value = cfg.chave || "";
-    document.getElementById("mailTeste").value = cfg.teste || "point.of.inforcell@gmail.com";
 
     function pintarStatusMail() {
       if (emailConfigurado()) {
@@ -107,29 +100,12 @@
       try {
         await salvarConfigEmail({
           chave: document.getElementById("mailChave").value.trim(),
-          destino: document.getElementById("mailDestino").value.trim(),
-          teste: document.getElementById("mailTeste").value.trim()
+          destino: document.getElementById("mailDestino").value.trim()
         });
         pintarStatusMail();
         toast("Configuracao de e-mail salva.");
       } catch (e) {
         toast(mensagemErro(e), "erro");
-      }
-    };
-
-    document.getElementById("btnMailTestar").onclick = async () => {
-      const destino = document.getElementById("mailTeste").value.trim();
-      if (!destino) return toast("Informe um e-mail para o teste.", "erro");
-      mailStatus.className = "alerta alerta-info";
-      mailStatus.textContent = "Enviando...";
-      const r = await enviarEmailTeste(destino);
-      if (r.ok) {
-        mailStatus.className = "alerta alerta-ok";
-        mailStatus.textContent = "Enviado! Confira a caixa de entrada e o spam de " + destino + ".";
-      } else {
-        mailStatus.className = "alerta alerta-erro";
-        mailStatus.innerHTML = `<strong>Nao foi possivel enviar.</strong><br>
-          <code style="font-size:12px">${escaparHtml(r.detalhe || r.motivo || "erro desconhecido")}</code>`;
       }
     };
 

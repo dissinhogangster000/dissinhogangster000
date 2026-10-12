@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+﻿import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -63,15 +63,15 @@ export function linkWhatsApp(ag, mensagem) {
 /** Mensagem de confirmacao do agendamento. */
 export function mensagemConfirmacao(ag) {
   const linhas = [
-    "Olá" + (ag.clienteNome ? " " + ag.clienteNome : "") + "!",
+    "OlÃ¡" + (ag.clienteNome ? " " + ag.clienteNome : "") + "!",
     "",
-    "Seu agendamento está confirmado:",
-    `📅 Data: ${formatarDataBR(ag.data)}`,
-    `🕐 Horário: ${ag.horaInicio} às ${ag.horaFim}`
+    "Seu agendamento estÃ¡ confirmado:",
+    `ðŸ“… Data: ${formatarDataBR(ag.data)}`,
+    `ðŸ• HorÃ¡rio: ${ag.horaInicio} Ã s ${ag.horaFim}`
   ];
-  if (ag.servicoNome) linhas.push(`🧠 Serviço: ${ag.servicoNome}`);
-  if (ag.valor) linhas.push(`💲 Valor: ${formatarMoeda(ag.valor)}`);
-  linhas.push("", "Dra. Edilaine Silva — Psicologia", "Suzano - SP");
+  if (ag.servicoNome) linhas.push(`ðŸ§  ServiÃ§o: ${ag.servicoNome}`);
+  if (ag.valor) linhas.push(`ðŸ’² Valor: ${formatarMoeda(ag.valor)}`);
+  linhas.push("", "Dra. Edilaine Silva â€” Psicologia", "Suzano - SP");
   return linhas.join("\n");
 }
 
@@ -356,11 +356,11 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
   <div style="background:#ffffff;border-radius:12px;padding:28px;border:1px solid #e6e6ef">
     <div style="text-align:center;margin-bottom:22px">
       <div style="display:inline-block;background:#7c5cbf;color:#fff;padding:10px 18px;border-radius:10px;font-weight:700">
-        Edilaine Psicanálise
+        Edilaine PsicanÃ¡lise
       </div>
     </div>
 
-    <h1 style="font-size:20px;color:#1c1c28;margin:0 0 6px">Olá, ${escaparHtml(ag.clienteNome || "")}!</h1>
+    <h1 style="font-size:20px;color:#1c1c28;margin:0 0 6px">OlÃ¡, ${escaparHtml(ag.clienteNome || "")}!</h1>
     <p style="font-size:15px;color:#6b6b7b;margin:0 0 22px">${quando}.</p>
 
     <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:22px">
@@ -369,11 +369,11 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
         <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${formatarDataBR(ag.data)}</td>
       </tr>
       <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">Horário</td>
-        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${escaparHtml(ag.horaInicio)} às ${escaparHtml(ag.horaFim)}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">HorÃ¡rio</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${escaparHtml(ag.horaInicio)} Ã s ${escaparHtml(ag.horaFim)}</td>
       </tr>
       ${ag.servicoNome ? `<tr>
-        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">Serviço</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">ServiÃ§o</td>
         <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${escaparHtml(ag.servicoNome)}</td>
       </tr>` : ""}
       ${ag.valor ? `<tr>
@@ -388,13 +388,13 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
     </div>
 
     <p style="margin:22px 0 0;font-size:13px;color:#6b6b7b">
-      Dra. Edilaine Silva &middot; Psicóloga Clínica &middot; CRP 06/123456<br>
+      Dra. Edilaine Silva &middot; PsicÃ³loga ClÃ­nica &middot; CRP 06/123456<br>
       Suzano - SP
     </p>
   </div>
 </div>`;
 
-  const textoSimples = `${quando}\n\nCliente: ${ag.clienteNome}\nData: ${formatarDataBR(ag.data)}\nHorário: ${ag.horaInicio} às ${ag.horaFim}\nServiço: ${ag.servicoNome || "-"}\n\nDra. Edilaine Silva - Suzano/SP`;
+  const textoSimples = `${quando}\n\nCliente: ${ag.clienteNome}\nData: ${formatarDataBR(ag.data)}\nHorÃ¡rio: ${ag.horaInicio} Ã s ${ag.horaFim}\nServiÃ§o: ${ag.servicoNome || "-"}\n\nDra. Edilaine Silva - Suzano/SP`;
 
   /** Um envio pela API do web3forms. */
   const post = async (destinatario, assuntoLocal, corpoLocal, textoLocal) => {
@@ -403,7 +403,7 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
         access_key: configEmail.chave,
-        from_name: "Edilaine Psicanálise",
+        from_name: "Edilaine PsicanÃ¡lise",
         replyto: destinatario,
         to: destinatario,
         subject: assuntoLocal,
@@ -437,30 +437,6 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
   }
 }
 
-/** Envia um e-mail de teste para o endereco configurado. */
-export async function enviarEmailTeste(destino) {
-  if (!emailConfigurado()) return { ok: false, detalhe: "Chave nao configurada." };
-  try {
-    const res = await fetch("https://api.web3forms.com/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        access_key: configEmail.chave,
-        from_name: "Edilaine Psicanálise",
-        subject: "Teste - painel de agendamento",
-        to: destino,
-        message: "Teste de configuracao. Se voce recebeu este e-mail, o envio automatico esta funcionando.",
-        html: "<p><strong>Teste de configuracao.</strong></p><p>Se voce recebeu este e-mail, o envio automatico de confirmacoes esta funcionando.</p>"
-      })
-    });
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok || !j.success) return { ok: false, status: res.status, detalhe: j?.message || `HTTP ${res.status}` };
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, detalhe: e.message };
-  }
-}
-
 /* ---------- Solicitacoes do cliente (nao alteram o agendamento) ---------- */
 
 export async function criarSolicitacao(dados) {
@@ -480,13 +456,13 @@ export async function criarSolicitacao(dados) {
   return ref.id;
 }
 
-/** Solicitações de um agendamento (para o cliente acompanhar). */
+/** SolicitaÃ§Ãµes de um agendamento (para o cliente acompanhar). */
 export async function listarSolicitacoesDoAgendamento(agendamentoId) {
   const snap = await getDocs(query(collection(db, "solicitacoes"), where("agendamentoId", "==", agendamentoId)));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-/** Todas as solicitações pendentes (admin). */
+/** Todas as solicitaÃ§Ãµes pendentes (admin). */
 export async function listarSolicitacoes() {
   const snap = await getDocs(collection(db, "solicitacoes"));
   return snap.docs
