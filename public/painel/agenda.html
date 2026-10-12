@@ -58,7 +58,10 @@
         </div>
         <div class="form-linha">
           <label for="mHora">Horario</label>
-          <input type="time" id="mHora" value="09:00" step="1800" required>
+          <select id="mHora" required>
+            <option value="">Selecione o horario</option>
+          </select>
+          <small id="mHoraAviso" style="color:#6b6b7b;font-size:12px"></small>
         </div>
         <div class="form-linha col-2">
           <label for="mObs">Observacoes</label>
@@ -197,16 +200,48 @@
         <code style="font-size:12px">${escaparHtml(e.message || String(e))}</code></div>`;
     });
 
-    function abrirNovo(horaPreenchida = "") {
+    async function horasLivres(data) {
+      const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+      let bloqueados = [];
+      if (ehAdmin) {
+        try { bloqueados = await listarBloqueios(data); } catch {}
+      }
+      return {
+        total: gerarHorarios(),
+        ocupadas: new Set(lista.map((a) => a.horaInicio)),
+        fechadas: new Set(bloqueados.map((b) => b.horaInicio))
+      };
+    }
+
+    async function preencherHorarios(data, manter = "") {
+      const { total, ocupadas, fechadas } = await horasLivres(data);
+      const sel = document.getElementById("mHora");
+      const aviso = document.getElementById("mHoraAviso");
+
+      const livres = total.filter((h) => !ocupadas.has(h) && !fechadas.has(h));
+      sel.innerHTML = '<option value="">Selecione o horario</option>' +
+        livres.map((h) => `<option value="${h}">${h}</option>`).join("");
+
+      if (manter && livres.includes(manter)) sel.value = manter;
+
+      aviso.textContent = livres.length
+        ? `${livres.length} horario(s) disponivel(is) nesta data.`
+        : "Nenhum horario disponivel nesta data.";
+    }
+
+    async function abrirNovo(horaPreenchida = "", dataPreenchida = "") {
+      const data = dataPreenchida || campoData.value || hojeISO();
       modal.hidden = false;
       modalMsg.style.display = "none";
       document.getElementById("mCliente").value = "";
       document.getElementById("mTelefone").value = "";
       document.getElementById("mEmail").value = "";
       document.getElementById("mObs").value = "";
-      document.getElementById("mData").value = campoData.value || hojeISO();
-      document.getElementById("mHora").value = horaPreenchida || "09:00";
+      document.getElementById("mData").value = data;
+      await preencherHorarios(data, horaPreenchida);
     }
+
+    document.getElementById("mData").addEventListener("change", (e) => preencherHorarios(e.target.value));
 
     document.getElementById("btnNovo").addEventListener("click", () => abrirNovo());
 
@@ -231,11 +266,15 @@
       const hora = document.getElementById("mHora").value;
       if (!cliente || !data || !hora) return aviso("Preencha cliente, data e horario.");
 
-      if (ehAdmin) {
-        const bloqueados = await listarBloqueios(data);
-        if (bloqueados.some((b) => b.horaInicio === hora)) {
-          return aviso("Este horario esta fechado.");
-        }
+      // trava: ninguem marca duas vezes o mesmo horario
+      const { ocupadas, fechadas } = await horasLivres(data);
+      if (ocupadas.has(hora)) {
+        await preencherHorarios(data);
+        return aviso("Este horario acabou de ser agendado. Escolha outro.");
+      }
+      if (fechadas.has(hora)) {
+        await preencherHorarios(data);
+        return aviso("Este horario esta fechado.");
       }
 
       const servicoId = document.getElementById("mServico").value;
@@ -258,7 +297,7 @@
       try {
         await salvarAgendamento(ag);
         modal.hidden = true;
-        toast("Agendamento criado.");
+        toast("Agendamento criado. O horario ja nao aparece como livre.");
         pintar();
       } catch (e) {
         aviso(mensagemErro(e));
