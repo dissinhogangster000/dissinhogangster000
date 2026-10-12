@@ -149,7 +149,11 @@
       try {
         const token = await obterToken(false);
         if (!token) {
-          boxGoogle.innerHTML = `<div class="alerta alerta-aviso">Sua conta nao tem acesso ao calendario. Entre com "Entrar com Google" ou use um e-mail@gmail.com para liberar a Google Agenda.</div>`;
+          boxGoogle.innerHTML = `<div class="alerta alerta-aviso">
+            <strong>Sua conta nao tem acesso ao calendario Google.</strong><br>
+            A Agenda do Google so funciona com conta <strong>@gmail.com</strong> e login pelo botao
+            <strong>"Entrar com Google"</strong>. Se ja entrou assim, ainda falta autorizar o calendario.
+            Use o botao acima para pedir a permissao.</div>`;
           return;
         }
         const eventos = await listarEventosDoDia(campoData.value || hojeISO(), token);
@@ -160,7 +164,9 @@
             }).join("")}</div>`
           : `<div class="vazio"><i class="fab fa-google"></i>Nenhum evento na Google Agenda nesta data.</div>`;
       } catch (e) {
-        boxGoogle.innerHTML = `<div class="alerta alerta-erro">${escaparHtml(mensagemErro(e))}</div>`;
+        boxGoogle.innerHTML = `<div class="alerta alerta-erro">
+          <strong>Erro de autorizacao do Google</strong><br>
+          <code style="font-size:12px">${escaparHtml(e.message || mensagemErro(e))}</code></div>`;
       }
     });
 
@@ -212,10 +218,10 @@
               ag.googleEventId = ev.id;
               salvouGoogle = true;
             } else {
-              aviso("Sem acesso ao calendario. Salvo aqui, mas nao foi para a Google Agenda.", "aviso");
+              aviso("Salvo aqui, mas nao foi para a Google Agenda: sua conta nao tem calendario Google. Use @gmail.com e login com Google.", "aviso");
             }
           } catch (e) {
-            aviso("Salvo aqui, mas nao na Google Agenda: " + mensagemErro(e), "aviso");
+            aviso("Salvo aqui, mas o Google recusou a autorizacao.<br><code style=\"font-size:12px\">" + escaparHtml(e.message || mensagemErro(e)) + "</code>", "aviso");
           }
         }
 

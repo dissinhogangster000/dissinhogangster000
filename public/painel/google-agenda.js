@@ -92,7 +92,7 @@ export async function obterToken(cached = false) {
     garantirTokenClient()
       .then((client) => {
         client.callback = (resp) => {
-          if (resp?.error) reject(new Error(resp.error));
+          if (resp?.error) reject(erroOAuth(resp));
           else if (resp?.access_token) resolve(resp.access_token);
           else reject(new Error("Nao foi possivel obter autorizacao do Google."));
         };
@@ -100,6 +100,25 @@ export async function obterToken(cached = false) {
       })
       .catch(reject);
   });
+}
+
+const EXPLICACOES = {
+  access_denied: "Voce negate o acesso, ou o app ainda nao foi autorizado no Google Cloud.",
+  invalid_scope: "O escopo do calendario nao esta liberado na tela de consentimento do Google Cloud.",
+  interaction_required: "E necessario aceitar a permissao. Tente novamente e clique em 'Permitir'.",
+  consent_required: "E necessario aceitar a permissao. Tente novamente.",
+  popup_closed_by_user: "A janela de autorizacao foi fechada antes de concluir.",
+  unauthorized_client: "O Client ID nao pertence a este projeto ou a API do Calendar esta desativada.",
+  invalid_client: "GOOGLE_CLIENT_ID invalido. Confira o valor em config.js.",
+  access_blocked: "O Google bloqueou o acesso. Revise a tela de consentimento e adicione seu e-mail como usuario de teste."
+};
+
+function erroOAuth(resp) {
+  const codigo = resp.error || "desconhecido";
+  const detalhe = resp.error_description || EXPLICACOES[codigo] || "Verifique a configuracao no Google Cloud Console.";
+  const e = new Error(`${codigo}: ${detalhe}`);
+  e.code = codigo;
+  return e;
 }
 
 function corpoEvento(ag) {
