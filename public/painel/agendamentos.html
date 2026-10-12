@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -43,6 +43,7 @@
     import { iniciarPagina, toast } from "./layout.js";
     import {
       listarAgendamentos, definirStatus, excluirAgendamento,
+      mensagemConfirmacao, linkWhatsApp,
       formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
     } from "./app.js";
 
@@ -84,7 +85,7 @@
                   <div class="acoes">
                     ${a.status === "pendente" ? `<button class="btn btn-sucesso btn-sm" data-st="${a.id}" data-valor="confirmado">Confirmar</button>` : ""}
                     ${a.status === "confirmado" ? `<button class="btn btn-secundario btn-sm" data-st="${a.id}" data-valor="concluido">Concluir</button>` : ""}
-                    <a class="btn btn-secundario btn-sm" href="wa.me/55${escaparHtml((a.clienteTelefone || "").replace(/\D/g, ""))}" target="_blank" rel="noopener">WhatsApp</a>
+                    <button class="btn btn-sucesso btn-sm" data-zap="${a.id}"><i class="fab fa-whatsapp"></i> Confirmar</button>
                     <button class="btn btn-perigo btn-sm" data-del="${a.id}">Excluir</button>
                   </div>
                 </td>
@@ -94,6 +95,15 @@
 
       tabela.querySelectorAll("[data-st]").forEach((b) =>
         b.onclick = async () => { await definirStatus(b.dataset.st, b.dataset.valor); toast("Status atualizado."); carregar(); }
+      );
+
+      tabela.querySelectorAll("[data-zap]").forEach((b) =>
+        b.onclick = () => {
+          const ag = lista.find((x) => x.id === b.dataset.zap);
+          if (!ag) return;
+          const texto = mensagemConfirmacao(ag);
+          window.open(linkWhatsApp(ag, texto), "_blank", "noopener");
+        }
       );
 
       tabela.querySelectorAll("[data-del]").forEach((b) =>

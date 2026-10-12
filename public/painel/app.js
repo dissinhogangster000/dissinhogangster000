@@ -27,12 +27,55 @@ import {
   runTransaction
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
+export { firebaseConfig };
+export { WHATSAPP_CONFIRMACAO } from "./config.js";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 const googleProvider = new GoogleAuthProvider();
+
+/* ---------- WhatsApp ---------- */
+
+function soDigitos(txt) {
+  return String(txt || "").replace(/\D/g, "");
+}
+
+/** Numero do cliente no formato internacional (55 + DDD + numero). */
+export function numeroCliente(ag) {
+  const d = soDigitos(ag?.clienteTelefone);
+  if (!d) return "";
+  if (d.startsWith("55")) return d;
+  if (d.length <= 11) return "55" + d;
+  return d;
+}
+
+/** Link do WhatsApp com a mensagem pronta. */
+export function linkWhatsApp(ag, mensagem) {
+  const texto = encodeURIComponent(mensagem);
+  const destino = numeroCliente(ag);
+  return destino
+    ? `https://wa.me/${destino}?text=${texto}`
+    : `https://wa.me/?text=${texto}`;
+}
+
+/** Mensagem de confirmacao do agendamento. */
+export function mensagemConfirmacao(ag) {
+  const linhas = [
+    "Olá" + (ag.clienteNome ? " " + ag.clienteNome : "") + "!",
+    "",
+    "Seu agendamento está confirmado:",
+    `📅 Data: ${formatarDataBR(ag.data)}`,
+    `🕐 Horário: ${ag.horaInicio} às ${ag.horaFim}`
+  ];
+  if (ag.servicoNome) linhas.push(`🧠 Serviço: ${ag.servicoNome}`);
+  if (ag.valor) linhas.push(`💲 Valor: ${formatarMoeda(ag.valor)}`);
+  linhas.push("", "Dra. Edilaine Silva — Psicologia", "Suzano - SP");
+  return linhas.join("\n");
+}
+
+/* ---------- Agenda (helpers) ---------- */
 
 /* ---------- Autenticacao ---------- */
 

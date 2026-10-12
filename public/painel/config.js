@@ -6,3 +6,6 @@ export const firebaseConfig = {
   messagingSenderId: "787723523407",
   appId: "1:787723523407:web:cf7e970cadc42d2ce9213a"
 };
+
+// Numero que recebe a confirmacao (com codigo do pais).
+export const WHATSAPP_CONFIRMACAO = "551199652007";
