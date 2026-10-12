@@ -222,8 +222,11 @@ export async function excluirAgendamento(id) {
 /* ---------- Bloqueios manuais de horario ---------- */
 
 export async function listarBloqueios(data) {
-  const snap = await getDocs(query(collection(db, "bloqueios"), where("data", "==", data), orderBy("horaInicio")));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Consulta simples (so um filtro) para nao depender de indice composto.
+  const snap = await getDocs(query(collection(db, "bloqueios"), where("data", "==", data)));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => String(a.horaInicio).localeCompare(String(b.horaInicio)));
 }
 
 export async function fecharHorario(data, hora, motivo = "") {

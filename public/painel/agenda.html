@@ -104,8 +104,19 @@
     async function pintar() {
       const data = campoData.value || hojeISO();
       grade.innerHTML = '<div class="carregando">Carregando...</div>';
-      const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
-      const bloqueados = await listarBloqueios(data);
+
+      let lista = [];
+      let bloqueados = [];
+      try {
+        lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+      } catch (e) {
+        console.warn("agendamentos:", e.message);
+      }
+      try {
+        bloqueados = await listarBloqueios(data);
+      } catch (e) {
+        console.warn("bloqueios:", e.message);
+      }
 
       grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
         const ag = lista.find((a) => a.horaInicio === h);
@@ -178,7 +189,11 @@
     }
 
     campoData.addEventListener("change", pintar);
-    pintar();
+    pintar().catch((e) => {
+      console.error(e);
+      grade.innerHTML = `<div class="alerta alerta-erro">Nao foi possivel carregar a agenda:<br>
+        <code style="font-size:12px">${escaparHtml(e.message || String(e))}</code></div>`;
+    });
 
     document.getElementById("btnNovo").addEventListener("click", () => {
       modal.hidden = false;
