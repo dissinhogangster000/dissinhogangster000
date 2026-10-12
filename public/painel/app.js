@@ -219,6 +219,28 @@ export async function excluirAgendamento(id) {
   await deleteDoc(doc(db, "agendamentos", id));
 }
 
+/* ---------- Bloqueios manuais de horario ---------- */
+
+export async function listarBloqueios(data) {
+  const snap = await getDocs(query(collection(db, "bloqueios"), where("data", "==", data), orderBy("horaInicio")));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function fecharHorario(data, hora, motivo = "") {
+  const existentes = await listarBloqueios(data);
+  if (existentes.some((b) => b.horaInicio === hora)) return;
+  await addDoc(collection(db, "bloqueios"), {
+    data,
+    horaInicio: hora,
+    motivo,
+    criadoEm: serverTimestamp()
+  });
+}
+
+export async function reabrirHorario(id) {
+  await deleteDoc(doc(db, "bloqueios", id));
+}
+
 /* ---------- Utilidades ---------- */
 
 export function mensagemErro(erro) {

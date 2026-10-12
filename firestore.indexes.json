@@ -32,6 +32,14 @@
         { "fieldPath": "data", "order": "ASCENDING" },
         { "fieldPath": "horaInicio", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "bloqueios",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "data", "order": "ASCENDING" },
+        { "fieldPath": "horaInicio", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

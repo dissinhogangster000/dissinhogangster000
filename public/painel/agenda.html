@@ -76,6 +76,7 @@
     import { iniciarPagina, toast } from "./layout.js";
     import {
       listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
+      listarBloqueios, fecharHorario, reabrirHorario,
       hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
 
@@ -104,10 +105,33 @@
       const data = campoData.value || hojeISO();
       grade.innerHTML = '<div class="carregando">Carregando...</div>';
       const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+      const bloqueados = await listarBloqueios(data);
 
       grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
         const ag = lista.find((a) => a.horaInicio === h);
-        if (!ag) return `<div class="horario"><div class="h">${h}</div><div class="c">Livre</div></div>`;
+        const bloq = bloqueados.find((b) => b.horaInicio === h);
+
+        // horario fechado manualmente
+        if (bloq) {
+          return `<div class="horario fechado">
+              <div class="h">${h}</div>
+              <div class="c">${bloq.motivo ? escaparHtml(bloq.motivo) : "Fechado"}</div>
+              <div style="margin-top:8px">
+                <button class="btn btn-secundario btn-sm" data-reabrir="${bloq.id}">Reabrir</button>
+              </div>
+            </div>`;
+        }
+
+        if (!ag) {
+          return `<div class="horario">
+              <div class="h">${h}</div>
+              <div class="c">Livre</div>
+              <div style="margin-top:8px">
+                <button class="btn btn-secundario btn-sm" data-fechar="${h}">Fechar</button>
+              </div>
+            </div>`;
+        }
+
         return `<div class="horario ocupado">
             <div class="h">${h}</div>
             <div class="c">${escaparHtml(ag.clienteNome)}<br>${escaparHtml(ag.servicoNome || "")}</div>
@@ -118,6 +142,32 @@
             </div>
           </div>`;
       }).join("")}</div>`;
+
+      grade.querySelectorAll("[data-fechar]").forEach((b) =>
+        b.onclick = async () => {
+          const motivo = prompt(`Fechar o horario ${b.dataset.fechar}? Escreva o motivo (opcional):`, "") ?? null;
+          if (motivo === null) return;
+          try {
+            await fecharHorario(data, b.dataset.fechar, motivo);
+            toast(`${b.dataset.fechar} fechado.`);
+            pintar();
+          } catch (e) {
+            toast(mensagemErro(e), "erro");
+          }
+        }
+      );
+
+      grade.querySelectorAll("[data-reabrir]").forEach((b) =>
+        b.onclick = async () => {
+          try {
+            await reabrirHorario(b.dataset.reabrir);
+            toast("Horario reaberto.");
+            pintar();
+          } catch (e) {
+            toast(mensagemErro(e), "erro");
+          }
+        }
+      );
 
       grade.querySelectorAll("[data-confirmar]").forEach((b) =>
         b.onclick = async () => { await definirStatus(b.dataset.confirmar, "confirmado"); toast("Agendamento confirmado."); pintar(); }
@@ -150,6 +200,11 @@
       const data = document.getElementById("mData").value;
       const hora = document.getElementById("mHora").value;
       if (!cliente || !data || !hora) return aviso("Preencha cliente, data e horario.");
+
+      const bloqueados = await listarBloqueios(data);
+      if (bloqueados.some((b) => b.horaInicio === hora)) {
+        return aviso("Este horario esta fechado.");
+      }
 
       const servicoId = document.getElementById("mServico").value;
       const servico = servicos.find((s) => s.id === servicoId);
