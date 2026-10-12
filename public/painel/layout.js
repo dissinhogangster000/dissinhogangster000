@@ -4,8 +4,7 @@ const PAGINAS = {
   dashboard: { titulo: "Painel de Agendamento", arquivo: "dashboard.html" },
   agenda: { titulo: "Agenda", arquivo: "agenda.html" },
   agendamentos: { titulo: "Agendamentos", arquivo: "agendamentos.html" },
-  servicos: { titulo: "Servicos", arquivo: "servicos.html" },
-  horarios: { titulo: "Horarios", arquivo: "horarios.html" }
+  servicos: { titulo: "Servicos", arquivo: "servicos.html" }
 };
 
 let usuarioAtual = null;
