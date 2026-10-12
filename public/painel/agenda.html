@@ -34,6 +34,13 @@
     <div class="cartao">
       <h2><i class="fab fa-google"></i> Eventos na Google Agenda</h2>
       <div id="google" class="carregando">Clique em "Ver na Google Agenda" para carregar.</div>
+      <div class="alerta alerta-info gap-top" id="googleAjuda" style="display:none">
+        <strong>A Agenda do Google ainda nao esta liberada nesta conta.</strong><br>
+        Para usar: entre pelo botao <strong>"Entrar com Google"</strong> com um e-mail
+        <strong>@gmail.com</strong> e autorize o acesso ao calendario.<br>
+        Enquanto isso, os agendamentos continuam sendo salvos normalmente neste painel &mdash;
+        apenas a copia na agenda externa fica desativada.
+      </div>
     </div>
   </main>
 
@@ -72,9 +79,13 @@
         </div>
         <div class="form-linha col-2">
           <label style="display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="mGoogle" checked style="width:auto">
+            <input type="checkbox" id="mGoogle" style="width:auto">
             <i class="fab fa-google" style="color:#4285F4"></i> Adicionar tambem na Google Agenda
           </label>
+          <small style="color:#6b6b7b;font-size:12px">
+            Exige login com Google (@gmail.com) e permissao de calendario liberada no Google Cloud.
+            Sem isso, o agendamento e salvo apenas aqui no painel.
+          </small>
         </div>
       </div>
       <div class="modal-acoes">
@@ -145,15 +156,14 @@
     pintar();
 
     document.getElementById("btnSync").addEventListener("click", async () => {
+      const ajuda = document.getElementById("googleAjuda");
+      ajuda.style.display = "none";
       boxGoogle.innerHTML = '<div class="carregando">Autorizando com o Google...</div>';
       try {
         const token = await obterToken(false);
         if (!token) {
-          boxGoogle.innerHTML = `<div class="alerta alerta-aviso">
-            <strong>Sua conta nao tem acesso ao calendario Google.</strong><br>
-            A Agenda do Google so funciona com conta <strong>@gmail.com</strong> e login pelo botao
-            <strong>"Entrar com Google"</strong>. Se ja entrou assim, ainda falta autorizar o calendario.
-            Use o botao acima para pedir a permissao.</div>`;
+          ajuda.style.display = "block";
+          boxGoogle.innerHTML = `<div class="vazio"><i class="fab fa-google"></i>Sua conta nao tem acesso ao calendario.</div>`;
           return;
         }
         const eventos = await listarEventosDoDia(campoData.value || hojeISO(), token);
@@ -164,6 +174,7 @@
             }).join("")}</div>`
           : `<div class="vazio"><i class="fab fa-google"></i>Nenhum evento na Google Agenda nesta data.</div>`;
       } catch (e) {
+        ajuda.style.display = "block";
         boxGoogle.innerHTML = `<div class="alerta alerta-erro">
           <strong>Erro de autorizacao do Google</strong><br>
           <code style="font-size:12px">${escaparHtml(e.message || mensagemErro(e))}</code></div>`;
