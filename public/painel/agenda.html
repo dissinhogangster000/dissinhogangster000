@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -23,37 +23,6 @@
         <input type="date" id="data">
       </div>
       <button class="btn btn-primario" id="btnNovo"><i class="fas fa-plus"></i> Novo agendamento</button>
-    </div>
-
-    <div class="cartao">
-      <h2><i class="fas fa-sliders"></i> Horarios que voce atende</h2>
-      <p style="color:#6b6b7b;font-size:13.5px;margin:-8px 0 16px">
-        Vale para todos os dias. Depois de salvar, a grade e a lista de horario do agendamento mudam juntos.
-      </p>
-      <div class="alerta" style="display:none" id="msgHor"></div>
-      <div class="barra-filtros" style="margin-bottom:14px">
-        <div class="campo">
-          <label for="hIni">Comeca as</label>
-          <input type="time" id="hIni" step="900">
-        </div>
-        <div class="campo">
-          <label for="hFim">Termina as</label>
-          <input type="time" id="hFim" step="900">
-        </div>
-        <div class="campo">
-          <label for="hInterv">Intervalo</label>
-          <select id="hInterv">
-            <option value="15">15 min</option>
-            <option value="30">30 min</option>
-            <option value="45">45 min</option>
-            <option value="60">1 hora</option>
-            <option value="90">1h30</option>
-          </select>
-        </div>
-        <button class="btn btn-primario" id="btnSalvarHor"><i class="fas fa-check"></i> Salvar</button>
-        <button class="btn btn-secundario" id="btnPadraoHor">Padrao</button>
-      </div>
-      <div id="previaHor" class="grade-dia"></div>
     </div>
 
     <div class="cartao">
@@ -109,75 +78,22 @@
     import { iniciarPagina, toast } from "./layout.js";
     import {
       listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
-      lerHorarios, salvarHorarios, gerarSlots, HORARIOS_PADRAO,
       hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
 
     await iniciarPagina("agenda");
     let servicos = [];
-    let horarios = await lerHorarios();
 
     const campoData = document.getElementById("data");
     const grade = document.getElementById("grade");
     const modal = document.getElementById("modal");
     const modalMsg = document.getElementById("modalMsg");
 
-    /* ---- Controle de horarios: vale para todos os dias ---- */
-
-    const hIni = document.getElementById("hIni");
-    const hFim = document.getElementById("hFim");
-    const hInterv = document.getElementById("hInterv");
-    const previaHor = document.getElementById("previaHor");
-    const msgHor = document.getElementById("msgHor");
-
-    function mostrarHor(texto, tipo = "erro") {
-      msgHor.style.display = "block";
-      msgHor.className = "alerta alerta-" + tipo;
-      msgHor.textContent = texto;
-    }
-
-    function pintarPrevia() {
-      const slots = gerarSlots({
-        horaInicio: hIni.value,
-        horaFim: hFim.value,
-        intervaloMin: hInterv.value
-      });
-      previaHor.innerHTML = slots.length
-        ? slots.map((h) => `<div class="horario"><div class="h">${h}</div></div>`).join("")
-        : `<div class="vazio"><i class="fas fa-ban"></i>Periodo invalido: o fim precisa ser depois do inicio.</div>`;
-    }
-
-    function preencherControle(cfg) {
-      hIni.value = cfg.horaInicio;
-      hFim.value = cfg.horaFim;
-      hInterv.value = String(cfg.intervaloMin);
-      pintarPrevia();
-    }
-
-    preencherControle(horarios);
-    [hIni, hFim, hInterv].forEach((e) => e.addEventListener("change", pintarPrevia));
-
-    document.getElementById("btnSalvarHor").onclick = async () => {
-      msgHor.style.display = "none";
-      if (!hIni.value || !hFim.value) return mostrarHor("Informe o inicio e o fim.");
-      if (hFim.value <= hIni.value) return mostrarHor("O fim precisa ser maior que o inicio.");
-      try {
-        const cfg = { horaInicio: hIni.value, horaFim: hFim.value, intervaloMin: hInterv.value };
-        await salvarHorarios(cfg);
-        horarios = cfg;
-        toast("Horarios atualizados para todos os dias.");
-        pintar();
-      } catch (e) {
-        mostrarHor(mensagemErro(e));
-      }
+    const gerarHorarios = () => {
+      const horas = [];
+      for (let h = 8; h < 20; h++) horas.push(`${String(h).padStart(2, "0")}:00`, `${String(h).padStart(2, "0")}:30`);
+      return horas;
     };
-
-    document.getElementById("btnPadraoHor").onclick = () => {
-      preencherControle({ ...HORARIOS_PADRAO });
-      mostrarHor("Mostrando 08:00 as 20:00, de 30 em 30 min. Clique em Salvar para confirmar.", "info");
-    };
-
-    /* ---- Agenda ---- */
 
     campoData.value = hojeISO();
     servicos = await listarServicos();
@@ -191,7 +107,7 @@
       grade.innerHTML = '<div class="carregando">Carregando...</div>';
       const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
 
-      grade.innerHTML = `<div class="grade-dia">${gerarSlots(horarios).map((h) => {
+      grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
         const ag = lista.find((a) => a.horaInicio === h);
         if (!ag) return `<div class="horario"><div class="h">${h}</div><div class="c">Livre</div></div>`;
         return `<div class="horario ocupado">
@@ -223,7 +139,7 @@
       const anterior = sel.value;
 
       sel.innerHTML = '<option value="">Selecione o horario</option>' +
-        gerarSlots(horarios).map((h) => `
+        gerarHorarios().map((h) => `
           <option value="${h}" ${ocupados.has(h) ? "disabled" : ""}>
             ${h}${ocupados.has(h) ? " - ocupado" : ""}
           </option>`).join("");
