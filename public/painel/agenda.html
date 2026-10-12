@@ -134,6 +134,11 @@
 
             grade.innerHTML = `${erro ? `<div class="alerta alerta-erro" style="margin-bottom:12px">
           Falha ao carregar os agendamentos:<br><code style="font-size:12px">${escaparHtml(erro)}</code></div>` : ""}
+        <p style="margin:0 0 12px;color:#6b6b7b;font-size:13px">
+          ${data.split("-").reverse().join("/")} &middot;
+          <strong>${lista.length}</strong> agendamento(s) &middot;
+          <strong>${visiveis.length}</strong> horario(s) livre(s)
+        </p>
         <div class="grade-dia">${visiveis.map((h) => {
         const bloq = bloqueados.find((b) => b.horaInicio === h);
 
