@@ -73,14 +73,16 @@
   </div>
 
   <script type="module">
-    import { iniciarPagina, toast } from "./layout.js";
+    import { iniciarPagina, toast, getPerfil } from "./layout.js";
     import {
       listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
       listarBloqueios, fecharHorario, reabrirHorario,
       hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
 
-    await iniciarPagina("agenda");
+    const usuario = await iniciarPagina("agenda");
+    if (!usuario) throw new Error("sem sessao");
+    const ehAdmin = getPerfil()?.papel === "admin";
     let servicos = [];
 
     const campoData = document.getElementById("data");
@@ -108,9 +110,9 @@
       let lista = [];
       let bloqueados = [];
       try {
-        lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+        bloqueados = ehAdmin ? await listarBloqueios(data) : [];
       } catch (e) {
-        console.warn("agendamentos:", e.message);
+        console.warn("bloqueios:", e.message);
       }
       try {
         bloqueados = await listarBloqueios(data);
@@ -127,9 +129,9 @@
           return `<div class="horario fechado">
               <div class="h">${h}</div>
               <div class="c">${bloq.motivo ? escaparHtml(bloq.motivo) : "Fechado"}</div>
-              <div style="margin-top:8px">
+              ${ehAdmin ? `<div style="margin-top:8px">
                 <button class="btn btn-secundario btn-sm" data-reabrir="${bloq.id}">Reabrir</button>
-              </div>
+              </div>` : ""}
             </div>`;
         }
 
@@ -137,9 +139,9 @@
           return `<div class="horario clicavel" data-livre="${h}" title="Clique para agendar neste horario">
               <div class="h">${h}</div>
               <div class="c">Livre<br><small style="color:#6b6b7b">clique para agendar</small></div>
-              <div style="margin-top:8px">
+              ${ehAdmin ? `<div style="margin-top:8px">
                 <button class="btn btn-secundario btn-sm" data-fechar="${h}">Fechar</button>
-              </div>
+              </div>` : ""}
             </div>`;
         }
 
@@ -229,9 +231,11 @@
       const hora = document.getElementById("mHora").value;
       if (!cliente || !data || !hora) return aviso("Preencha cliente, data e horario.");
 
-      const bloqueados = await listarBloqueios(data);
-      if (bloqueados.some((b) => b.horaInicio === hora)) {
-        return aviso("Este horario esta fechado.");
+      if (ehAdmin) {
+        const bloqueados = await listarBloqueios(data);
+        if (bloqueados.some((b) => b.horaInicio === hora)) {
+          return aviso("Este horario esta fechado.");
+        }
       }
 
       const servicoId = document.getElementById("mServico").value;

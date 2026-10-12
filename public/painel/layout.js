@@ -1,33 +1,38 @@
 import { observarAuth, sair, garantirPerfil } from "./app.js";
 
 const PAGINAS = {
-  dashboard: { titulo: "Painel de Agendamento", arquivo: "dashboard.html" },
-  agenda: { titulo: "Agenda", arquivo: "agenda.html" },
-  agendamentos: { titulo: "Agendamentos", arquivo: "agendamentos.html" },
-  servicos: { titulo: "Servicos", arquivo: "servicos.html" },
-  usuarios: { titulo: "Usuarios", arquivo: "usuarios.html" }
+  dashboard: { titulo: "Painel de Agendamento", arquivo: "dashboard.html", papeis: ["admin"] },
+  agenda: { titulo: "Agenda", arquivo: "agenda.html", papeis: ["admin", "comum"] },
+  agendamentos: { titulo: "Agendamentos", arquivo: "agendamentos.html", papeis: ["admin"] },
+  servicos: { titulo: "Servicos", arquivo: "servicos.html", papeis: ["admin"] },
+  usuarios: { titulo: "Usuarios", arquivo: "usuarios.html", papeis: ["admin"] }
 };
+
+/** Pagina inicial de cada nivel de acesso. */
+export const INICIO = { admin: "dashboard.html", comum: "agenda.html" };
 
 let usuarioAtual = null;
 let perfilAtual = null;
 
-/** Bloqueia a tela para quem nao e administrador. */
-function bloquear(perfil) {
+/** Bloqueia a tela para quem nao tem permissao. */
+function bloquear(perfil, mensagem) {
   document.body.innerHTML = `
     <div class="login-body">
       <div class="login-wrap">
         <div class="login-cartao" style="text-align:center">
           <div class="login-marca"><i class="fas fa-user-lock"></i> Acesso restrito</div>
-          <p class="login-sub">Somente administradores podem usar este painel.</p>
+          <p class="login-sub">${mensagem}</p>
           <div class="alerta alerta-aviso" style="text-align:left">
-            Voce esta autenticado como <strong>${(perfil?.email || "").replace(/[<>&"]/g, "")}</strong>,
-            mas sua conta ainda nao foi liberada como administrador.
-            Peça a um administrador para liberar seu acesso.
+            Voce esta autenticado como <strong>${(perfil?.email || "").replace(/[<>&"]/g, "")}</strong>
+            (perfil: ${(perfil?.papel || "comum").replace(/[<>&"]/g, "")}).
           </div>
-          <button class="btn btn-primario btn-bloco" id="btnSairBloq">Sair da conta</button>
+          <button class="btn btn-primario btn-bloco" id="btnIrAgenda">Ir para a Agenda</button>
+          <button class="btn btn-secundario btn-bloco gap-top" id="btnSairBloq">Sair da conta</button>
         </div>
       </div>
     </div>`;
+  const agenda = document.getElementById("btnIrAgenda");
+  if (agenda) agenda.onclick = () => { location.href = INICIO[perfil?.papel] || "agenda.html"; };
   const b = document.getElementById("btnSairBloq");
   if (b) b.onclick = async () => { await sair(); location.href = "login.html"; };
 }
@@ -45,8 +50,23 @@ export async function iniciarPagina(chaveAtiva) {
 
   perfilAtual = await garantirPerfil(usuarioAtual);
 
-  if (perfilAtual?.papel !== "admin") {
-    bloquear(perfilAtual);
+  if (!perfilAtual) {
+    location.replace("login.html");
+    return null;
+  }
+
+  const papel = perfilAtual.papel || "comum";
+  const pagina = PAGINAS[chaveAtiva];
+  const permitido = !pagina || pagina.papeis.includes(papel);
+
+  if (!permitido) {
+    bloquear(perfilAtual, "Somente administradores podem acessar esta area.");
+    return null;
+  }
+
+  // comum so entra na agenda
+  if (papel !== "admin" && chaveAtiva !== "agenda") {
+    location.replace(INICIO.comum);
     return null;
   }
 
@@ -54,6 +74,7 @@ export async function iniciarPagina(chaveAtiva) {
   if (!topo) return usuarioAtual;
 
   const menu = Object.entries(PAGINAS)
+    .filter(([, p]) => p.papeis.includes(papel))
     .map(([chave, p]) =>
       `<a href="${p.arquivo}" class="${chave === chaveAtiva ? "ativo" : ""}">${p.titulo}</a>`
     )

@@ -29,15 +29,18 @@ service cloud.firestore {
       allow delete: if ehAdmin();
     }
 
-    // ---- Somente administradores ----
+    // ---- Servicos: qualquer autenticado le, so admin altera ----
     match /servicos/{id} {
-      allow read, write: if ehAdmin();
+      allow read:  if logado();
+      allow write: if ehAdmin();
     }
 
+    // ---- Agendamentos: quem usa a Agenda precisa criar/editar ----
     match /agendamentos/{id} {
-      allow read, write: if ehAdmin();
+      allow read, write: if logado();
     }
 
+    // ---- Somente administradores ----
     match /configuracoes/{id} {
       allow read, write: if ehAdmin();
     }

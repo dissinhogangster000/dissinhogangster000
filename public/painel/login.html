@@ -49,7 +49,8 @@
   </div>
 
   <script type="module">
-    import { loginComGoogle, loginComEmail, observarAuth, mensagemErro } from "./app.js";
+    import { loginComGoogle, loginComEmail, observarAuth, mensagemErro, garantirPerfil } from "./app.js";
+    import { INICIO } from "./layout.js";
 
     const msg = document.getElementById("msg");
     const aviso = (texto, tipo = "erro") => {
@@ -58,13 +59,18 @@
       msg.textContent = texto;
     };
 
-    observarAuth((u) => { if (u) location.replace("dashboard.html"); });
+    async function destino(user) {
+      if (!user) return;
+      const perfil = await garantirPerfil(user);
+      location.replace(INICIO[perfil?.papel] || INICIO.comum);
+    }
+
+    observarAuth(destino);
 
     document.getElementById("btnGoogle").addEventListener("click", async () => {
       msg.style.display = "none";
       try {
-        await loginComGoogle();
-        location.href = "dashboard.html";
+        await destino(await loginComGoogle());
       } catch (e) {
         aviso(mensagemErro(e));
       }
@@ -74,8 +80,10 @@
       e.preventDefault();
       msg.style.display = "none";
       try {
-        await loginComEmail(document.getElementById("email").value.trim(), document.getElementById("senha").value);
-        location.href = "dashboard.html";
+        await destino(await loginComEmail(
+          document.getElementById("email").value.trim(),
+          document.getElementById("senha").value
+        ));
       } catch (er) {
         aviso(mensagemErro(er));
       }
