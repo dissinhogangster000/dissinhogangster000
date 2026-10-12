@@ -32,8 +32,6 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope("https://www.googleapis.com/auth/calendar.events");
-googleProvider.addScope("https://www.googleapis.com/auth/calendar.readonly");
 
 /* ---------- Autenticacao ---------- */
 
@@ -165,9 +163,7 @@ export async function salvarAgendamento(dados) {
     horaFim: dados.horaFim || "",
     status: dados.status || "pendente",
     valor: Number(dados.valor) || 0,
-    observacoes: dados.observacoes || "",
-    googleEventId: dados.googleEventId || "",
-    sincronizado: !!dados.googleEventId
+    observacoes: dados.observacoes || ""
   };
   if (dados.id) {
     const { id, ...resto } = dados;
@@ -180,14 +176,6 @@ export async function salvarAgendamento(dados) {
 
 export async function definirStatus(id, status) {
   await updateDoc(doc(db, "agendamentos", id), { status, atualizadoEm: serverTimestamp() });
-}
-
-export async function definirSync(id, googleEventId) {
-  await updateDoc(doc(db, "agendamentos", id), {
-    googleEventId: googleEventId || "",
-    sincronizado: !!googleEventId,
-    atualizadoEm: serverTimestamp()
-  });
 }
 
 export async function excluirAgendamento(id) {
@@ -210,9 +198,7 @@ export function mensagemErro(erro) {
     "auth/unauthorized-domain": "Dominio nao autorizado no Firebase Authentication.",
     "auth/operation-not-allowed": "Login com Google nao ativado no Firebase Console.",
     "permission-denied": "Sem permissao para esta operacao.",
-    "nao-autenticado": "Faca login novamente.",
-    "missing-client-id": "Configure o GOOGLE_CLIENT_ID em config.js",
-    "gis-nao-carregado": "Google Identity Services nao carregou. Verifique sua conexao."
+    "nao-autenticado": "Faca login novamente."
   };
   return mapa[erro?.code] || erro?.message || "Erro inesperado.";
 }

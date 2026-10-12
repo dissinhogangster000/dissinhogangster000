@@ -91,8 +91,7 @@
               <td>${escaparHtml(a.horaInicio)}</td>
               <td>${escaparHtml(a.clienteNome)}</td>
               <td>${escaparHtml(a.servicoNome || "-")}</td>
-              <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span>
-                  ${a.googleEventId ? ' <span class="selo-sync"><i class="fas fa-check"></i> Agenda</span>' : ""}</td>
+              <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span></td>
             </tr>`).join("")}
           </tbody>
         </table></div>`

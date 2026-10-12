@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #f7f7fb;
   --superficie: #ffffff;
   --borda: #e6e6ef;
@@ -303,8 +303,6 @@ tbody tr:hover { background: #fcfcfe; }
 .etiqueta-confirmado { background: var(--sucesso-claro); color: var(--sucesso); }
 .etiqueta-concluido { background: var(--primaria-clara); color: var(--primaria-escura); }
 .etiqueta-cancelado { background: var(--perigo-claro); color: var(--perigo); }
-
-.selo-sync { font-size: 11px; color: var(--sucesso); font-weight: 600; }
 
 /* ---------- Agenda do dia ---------- */
 

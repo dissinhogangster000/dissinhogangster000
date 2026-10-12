@@ -23,24 +23,11 @@
         <input type="date" id="data">
       </div>
       <button class="btn btn-primario" id="btnNovo"><i class="fas fa-plus"></i> Novo agendamento</button>
-      <button class="btn btn-secundario" id="btnSync"><i class="fab fa-google"></i> Ver na Google Agenda</button>
     </div>
 
     <div class="cartao">
       <h2><i class="fas fa-clock"></i> Horarios do dia</h2>
       <div id="grade" class="carregando">Carregando...</div>
-    </div>
-
-    <div class="cartao">
-      <h2><i class="fab fa-google"></i> Eventos na Google Agenda</h2>
-      <div id="google" class="carregando">Clique em "Ver na Google Agenda" para carregar.</div>
-      <div class="alerta alerta-info gap-top" id="googleAjuda" style="display:none">
-        <strong>A Agenda do Google ainda nao esta liberada nesta conta.</strong><br>
-        Para usar: entre pelo botao <strong>"Entrar com Google"</strong> com um e-mail
-        <strong>@gmail.com</strong> e autorize o acesso ao calendario.<br>
-        Enquanto isso, os agendamentos continuam sendo salvos normalmente neste painel &mdash;
-        apenas a copia na agenda externa fica desativada.
-      </div>
     </div>
   </main>
 
@@ -77,16 +64,6 @@
           <label for="mObs">Observacoes</label>
           <textarea id="mObs" placeholder="Anotacoes internas"></textarea>
         </div>
-        <div class="form-linha col-2">
-          <label style="display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="mGoogle" style="width:auto">
-            <i class="fab fa-google" style="color:#4285F4"></i> Adicionar tambem na Google Agenda
-          </label>
-          <small style="color:#6b6b7b;font-size:12px">
-            Exige login com Google (@gmail.com) e permissao de calendario liberada no Google Cloud.
-            Sem isso, o agendamento e salvo apenas aqui no painel.
-          </small>
-        </div>
       </div>
       <div class="modal-acoes">
         <button class="btn btn-secundario" id="btnCancelar">Cancelar</button>
@@ -99,16 +76,14 @@
     import { iniciarPagina, toast } from "./layout.js";
     import {
       listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
-      hojeISO, somarMinutos, formatarDataBR, escaparHtml, mensagemErro
+      hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
-    import { obterToken, criarEvento, listarEventosDoDia, resumoEvento } from "./google-agenda.js";
 
     await iniciarPagina("agenda");
     let servicos = [];
 
     const campoData = document.getElementById("data");
     const grade = document.getElementById("grade");
-    const boxGoogle = document.getElementById("google");
     const modal = document.getElementById("modal");
     const modalMsg = document.getElementById("modalMsg");
 
@@ -155,32 +130,6 @@
     campoData.addEventListener("change", pintar);
     pintar();
 
-    document.getElementById("btnSync").addEventListener("click", async () => {
-      const ajuda = document.getElementById("googleAjuda");
-      ajuda.style.display = "none";
-      boxGoogle.innerHTML = '<div class="carregando">Autorizando com o Google...</div>';
-      try {
-        const token = await obterToken(false);
-        if (!token) {
-          ajuda.style.display = "block";
-          boxGoogle.innerHTML = `<div class="vazio"><i class="fab fa-google"></i>Sua conta nao tem acesso ao calendario.</div>`;
-          return;
-        }
-        const eventos = await listarEventosDoDia(campoData.value || hojeISO(), token);
-        boxGoogle.innerHTML = eventos.length
-          ? `<div class="grade-dia">${eventos.map((ev) => {
-              const r = resumoEvento(ev);
-              return `<div class="horario"><div class="h">${escaparHtml(r.hora)}</div><div class="c">${escaparHtml(r.titulo)}</div></div>`;
-            }).join("")}</div>`
-          : `<div class="vazio"><i class="fab fa-google"></i>Nenhum evento na Google Agenda nesta data.</div>`;
-      } catch (e) {
-        ajuda.style.display = "block";
-        boxGoogle.innerHTML = `<div class="alerta alerta-erro">
-          <strong>Erro de autorizacao do Google</strong><br>
-          <code style="font-size:12px">${escaparHtml(e.message || mensagemErro(e))}</code></div>`;
-      }
-    });
-
     document.getElementById("btnNovo").addEventListener("click", () => {
       modal.hidden = false;
       modalMsg.style.display = "none";
@@ -220,25 +169,9 @@
       };
 
       try {
-        let salvouGoogle = false;
-        if (document.getElementById("mGoogle").checked) {
-          try {
-            const token = await obterToken(false);
-            if (token) {
-              const ev = await criarEvento(ag, token);
-              ag.googleEventId = ev.id;
-              salvouGoogle = true;
-            } else {
-              aviso("Salvo aqui, mas nao foi para a Google Agenda: sua conta nao tem calendario Google. Use @gmail.com e login com Google.", "aviso");
-            }
-          } catch (e) {
-            aviso("Salvo aqui, mas o Google recusou a autorizacao.<br><code style=\"font-size:12px\">" + escaparHtml(e.message || mensagemErro(e)) + "</code>", "aviso");
-          }
-        }
-
         await salvarAgendamento(ag);
         modal.hidden = true;
-        toast(salvouGoogle ? "Agendamento criado e sincronizado com a Google Agenda." : "Agendamento criado.");
+        toast("Agendamento criado.");
         pintar();
       } catch (e) {
         aviso(mensagemErro(e));

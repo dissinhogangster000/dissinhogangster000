@@ -45,7 +45,6 @@
       listarAgendamentos, definirStatus, excluirAgendamento,
       formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
     } from "./app.js";
-    import { obterToken, removerEvento } from "./google-agenda.js";
 
     await iniciarPagina("agendamentos");
     const tabela = document.getElementById("tabela");
@@ -77,7 +76,6 @@
                 <td><strong>${escaparHtml(a.clienteNome)}</strong></td>
                 <td>
                   ${a.clienteTelefone ? `<a class="link-suave" target="_blank" rel="noopener" href="https://wa.me/55${escaparHtml(a.clienteTelefone.replace(/\D/g, ""))}">${escaparHtml(a.clienteTelefone)}</a>` : "-"}
-                  ${a.googleEventId ? ' <span class="selo-sync"><i class="fab fa-google"></i> Agenda</span>' : ""}
                 </td>
                 <td>${escaparHtml(a.servicoNome || "-")}</td>
                 <td>${formatarMoeda(a.valor)}</td>
@@ -102,13 +100,6 @@
         b.onclick = async () => {
           if (!confirm("Excluir este agendamento?")) return;
           try {
-            const alvo = lista.find((x) => x.id === b.dataset.del);
-            if (alvo?.googleEventId) {
-              try {
-                const t = await obterToken(true);
-                if (t) await removerEvento(alvo.googleEventId, t);
-              } catch {}
-            }
             await excluirAgendamento(b.dataset.del);
             toast("Agendamento excluido.");
             carregar();
