@@ -13,6 +13,5 @@ export const WHATSAPP_CONFIRMACAO = "551199652007";
 // E-mail que recebe as confirmacoes enviadas pelo painel.
 export const EMAIL_DESTINO = "contato@draedilaine.com.br";
 
-// Chave do servico de e-mail (web3forms.com - gratuito). Enquanto estiver vazia,
-// o envio e ignorado e o painel continua funcionando normalmente.
-export const EMAIL_CHAVE = "COLE_AQUI_SUA_CHAVE_WEB3FORMS";
+// Chave do servico de e-mail (web3forms.com - gratuito).
+export const EMAIL_CHAVE = "c393bb9e-2728-428f-b47c-822929f9c5a2";
