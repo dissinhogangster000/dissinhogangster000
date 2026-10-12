@@ -23,7 +23,8 @@ import {
   getDocs,
   addDoc,
   deleteDoc,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -188,6 +189,11 @@ export async function listarAgendamentos({ data, status, limite } = {}) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/** Documento unico por data+hora: garante que o horario e travado no banco. */
+export function idReserva(data, hora) {
+  return `${data}_${String(hora).replace(":", "")}`;
+}
+
 export async function salvarAgendamento(dados) {
   const payload = {
     clienteNome: dados.clienteNome || "",
@@ -202,12 +208,25 @@ export async function salvarAgendamento(dados) {
     valor: Number(dados.valor) || 0,
     observacoes: dados.observacoes || ""
   };
+
   if (dados.id) {
     const { id, ...resto } = dados;
     await updateDoc(doc(db, "agendamentos", id), { ...resto, atualizadoEm: serverTimestamp() });
     return id;
   }
-  const ref = await addDoc(collection(db, "agendamentos"), { ...payload, criadoEm: serverTimestamp() });
+
+  // Reserva com transacao: se o horario ja estiver marcado, aborta.
+  const ref = doc(db, "agendamentos", idReserva(payload.data, payload.horaInicio));
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists() && snap.data().status !== "cancelado") {
+      const e = new Error("ocupado");
+      e.code = "horario-ocupado";
+      throw e;
+    }
+    tx.set(ref, { ...payload, criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp() });
+  });
+
   return ref.id;
 }
 
@@ -260,6 +279,8 @@ export function mensagemErro(erro) {
     "auth/unauthorized-domain": "Dominio nao autorizado no Firebase Authentication.",
     "auth/operation-not-allowed": "Login com Google nao ativado no Firebase Console.",
     "permission-denied": "Sem permissao para esta operacao.",
+    "horario-ocupado": "Este horario acabou de ser agendado por outra pessoa.",
+    "aborted": "Este horario acabou de ser agendado por outra pessoa.",
     "nao-autenticado": "Faca login novamente."
   };
   return mapa[erro?.code] || erro?.message || "Erro inesperado.";

@@ -279,10 +279,15 @@
       try {
         await salvarAgendamento(ag);
         modal.hidden = true;
-        toast("Agendamento criado. O horario ja nao aparece como livre.");
+        toast("Agendamento criado. O horario ficou travado.");
         pintar();
       } catch (e) {
         aviso(mensagemErro(e));
+        // se deu conflito de horario, recarrega a lista de disponiveis
+        if (e?.code === "horario-ocupado" || e?.code === "aborted" || /conflito/i.test(e?.message || "")) {
+          await preencherHorarios(data);
+          pintar();
+        }
       }
     });
   </script>
