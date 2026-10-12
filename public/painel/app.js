@@ -295,8 +295,41 @@ export async function definirStatus(id, status) {
 
 /* ---------- Envio de e-mail ---------- */
 
+/** Configuracao de e-mail: chave no arquivo + ajustes salvos no painel. */
+let configEmail = { chave: EMAIL_CHAVE, destino: EMAIL_DESTINO };
+
+export function lerConfigEmailArquivo() {
+  return { ...configEmail };
+}
+
+export async function carregarConfigEmail() {
+  try {
+    const snap = await getDoc(doc(db, "configuracoes", "email"));
+    if (snap.exists()) {
+      const d = snap.data() || {};
+      if (d.chave) configEmail.chave = d.chave;
+      if (d.destino) configEmail.destino = d.destino;
+    }
+  } catch (e) {
+    console.warn("config email:", e.message);
+  }
+  return { ...configEmail };
+}
+
+export async function salvarConfigEmail({ chave, destino }) {
+  if (chave !== undefined) configEmail.chave = String(chave || "").trim();
+  if (destino !== undefined) configEmail.destino = String(destino || "").trim();
+  await setDoc(doc(db, "configuracoes", "email"), {
+    chave: configEmail.chave,
+    destino: configEmail.destino,
+    atualizadoEm: serverTimestamp()
+  });
+  return { ...configEmail };
+}
+
 export function emailConfigurado() {
-  return !!EMAIL_CHAVE && !EMAIL_CHAVE.startsWith("COLE_AQUI");
+  const k = String(configEmail.chave || "");
+  return !!k && !k.startsWith("COLE_AQUI") && k.length > 8;
 }
 
 /**
@@ -363,19 +396,47 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
-        access_key: EMAIL_CHAVE,
+        access_key: configEmail.chave,
         from_name: "Edilaine Psicanálise",
         replyto: ag.clienteEmail,
-        to: EMAIL_DESTINO,
+        to: configEmail.destino,
         subject: assunto,
         html: corpo,
         text: `${quando}\n\nCliente: ${ag.clienteNome}\nData: ${formatarDataBR(ag.data)}\nHorário: ${ag.horaInicio} às ${ag.horaFim}\nServiço: ${ag.servicoNome || "-"}\n\nDra. Edilaine Silva - Suzano/SP`
       })
     });
     const j = await res.json().catch(() => ({}));
-    return { ok: !!j.success, resposta: j };
+    if (!res.ok || !j.success) {
+      console.error("web3forms:", res.status, j);
+      return { ok: false, status: res.status, detalhe: j?.message || `HTTP ${res.status}` };
+    }
+    return { ok: true, resposta: j };
   } catch (e) {
-    return { ok: false, motivo: e.message };
+    return { ok: false, motivo: e.message, detalhe: "Falha de rede ao contatar o servico de e-mail." };
+  }
+}
+
+/** Envia um e-mail de teste para o endereco configurado. */
+export async function enviarEmailTeste(destino) {
+  if (!emailConfigurado()) return { ok: false, detalhe: "Chave nao configurada." };
+  try {
+    const res = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        access_key: configEmail.chave,
+        from_name: "Edilaine Psicanálise",
+        subject: "Teste - painel de agendamento",
+        to: destino,
+        message: "Teste de configuracao. Se voce recebeu este e-mail, o envio automatico esta funcionando.",
+        html: "<p><strong>Teste de configuracao.</strong></p><p>Se voce recebeu este e-mail, o envio automatico de confirmacoes esta funcionando.</p>"
+      })
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.success) return { ok: false, status: res.status, detalhe: j?.message || `HTTP ${res.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, detalhe: e.message };
   }
 }
 

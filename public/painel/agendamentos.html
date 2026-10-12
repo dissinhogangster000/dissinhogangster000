@@ -36,6 +36,34 @@
       <button class="btn btn-secundario" id="btnLimpar">Limpar</button>
     </div>
 
+    <div class="cartao">
+      <h2><i class="fas fa-envelope"></i> Envio automatico de e-mail</h2>
+      <div id="mailStatus" class="alerta alerta-info">Carregando...</div>
+      <div class="form-grid">
+        <div class="form-linha">
+          <label for="mailDestino">E-mail que recebe as confirmacoes</label>
+          <input type="email" id="mailDestino" placeholder="seu@email.com">
+        </div>
+        <div class="form-linha">
+          <label for="mailChave">Chave do servico (web3forms.com)</label>
+          <input type="text" id="mailChave" placeholder="access key">
+        </div>
+      </div>
+      <div class="form-linha">
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="email" id="mailTeste" placeholder="teste@email.com" style="flex:1">
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primario" id="btnMailSalvar"><i class="fas fa-check"></i> Salvar</button>
+        <button class="btn btn-secundario" id="btnMailTestar"><i class="fas fa-paper-plane"></i> Enviar teste</button>
+      </div>
+      <small style="color:#6b6b7b;display:block;margin-top:12px">
+        O e-mail so e aceito se o endereco for exatamente o mesmo usado na conta do servico.
+        No primeiro acesso, confira se a mensagem chega no spam.
+      </small>
+    </div>
+
     <div id="solic" class="carregando">Carregando...</div>
 
     <div id="tabela" class="carregando">Carregando...</div>
@@ -46,7 +74,8 @@
     import {
       listarAgendamentos, definirStatus, excluirAgendamento, salvarAgendamento,
       listarSolicitacoes, resolverSolicitacao, somarMinutos,
-      mensagemConfirmacao, linkWhatsApp, enviarEmailConfirmacao, emailConfigurado,
+      mensagemConfirmacao, linkWhatsApp, enviarEmailConfirmacao, enviarEmailTeste,
+      carregarConfigEmail, salvarConfigEmail, emailConfigurado,
       formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
     } from "./app.js";
 
@@ -54,21 +83,62 @@
     const tabela = document.getElementById("tabela");
     const boxSolic = document.getElementById("solic");
 
-    /** Avisa se o e-mail automatico esta ativo. */
-    if (!emailConfigurado()) {
-      const aviso = document.createElement("div");
-      aviso.className = "alerta alerta-aviso";
-      aviso.style.marginBottom = "16px";
-      aviso.innerHTML = "<strong>E-mail automatico desativado.</strong> Configure a chave em <code>config.js</code> para enviar confirmacoes.";
-      document.querySelector(".conteudo").prepend(aviso);
-    }
+    /* ---- Configuracao de e-mail ---- */
 
-    /** Envia o e-mail e avisa o resultado. */
+    const mailStatus = document.getElementById("mailStatus");
+    const cfg = await carregarConfigEmail();
+
+    document.getElementById("mailDestino").value = cfg.destino || "";
+    document.getElementById("mailChave").value = cfg.chave || "";
+    document.getElementById("mailTeste").value = cfg.destino || "";
+
+    function pintarStatusMail() {
+      if (emailConfigurado()) {
+        mailStatus.className = "alerta alerta-ok";
+        mailStatus.innerHTML = "<strong>Envio automatico ativo.</strong> Os e-mails saem ao confirmar ou aprovar pedidos.";
+      } else {
+        mailStatus.className = "alerta alerta-aviso";
+        mailStatus.innerHTML = "<strong>Envio automatico desativado.</strong> Informe a chave do servico e clique em Salvar.";
+      }
+    }
+    pintarStatusMail();
+
+    document.getElementById("btnMailSalvar").onclick = async () => {
+      try {
+        await salvarConfigEmail({
+          chave: document.getElementById("mailChave").value.trim(),
+          destino: document.getElementById("mailDestino").value.trim()
+        });
+        pintarStatusMail();
+        toast("Configuracao de e-mail salva.");
+      } catch (e) {
+        toast(mensagemErro(e), "erro");
+      }
+    };
+
+    document.getElementById("btnMailTestar").onclick = async () => {
+      const destino = document.getElementById("mailTeste").value.trim();
+      if (!destino) return toast("Informe um e-mail para o teste.", "erro");
+      mailStatus.className = "alerta alerta-info";
+      mailStatus.textContent = "Enviando...";
+      const r = await enviarEmailTeste(destino);
+      if (r.ok) {
+        mailStatus.className = "alerta alerta-ok";
+        mailStatus.textContent = "Enviado! Confira a caixa de entrada e o spam de " + destino + ".";
+      } else {
+        mailStatus.className = "alerta alerta-erro";
+        mailStatus.innerHTML = `<strong>Nao foi possivel enviar.</strong><br>
+          <code style="font-size:12px">${escaparHtml(r.detalhe || r.motivo || "erro desconhecido")}</code>`;
+      }
+    };
+
+    /** Envia o e-mail e mostra o resultado real. */
     async function avisarPorEmail(ag, tipo) {
       const r = await enviarEmailConfirmacao(ag, tipo);
       if (r.motivo === "nao-configurado") return;
       if (r.motivo === "sem-email") { toast("Agendamento sem e-mail: nao foi possivel avisar.", "aviso"); return; }
-      toast(r.ok ? "E-mail de confirmacao enviado." : "Falha ao enviar o e-mail.", r.ok ? "ok" : "erro");
+      if (r.ok) { toast("E-mail de confirmacao enviado."); return; }
+      toast("Falha no e-mail: " + (r.detalhe || "erro desconhecido"), "erro");
     }
 
     /* ---- Pedidos do cliente ---- */
