@@ -78,7 +78,7 @@
   <script type="module">
     import { iniciarPagina, toast, getPerfil } from "./layout.js";
     import {
-      listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
+      listarAgendamentos, listarServicos, salvarAgendamento,
       listarBloqueios, fecharHorario, reabrirHorario,
       hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
@@ -123,11 +123,12 @@
         console.warn("bloqueios:", e.message);
       }
 
-      grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
-        const ag = lista.find((a) => a.horaInicio === h);
+      // Horarios ja agendados somem da grade.
+      const visiveis = gerarHorarios().filter((h) => !lista.some((a) => a.horaInicio === h));
+
+      grade.innerHTML = `<div class="grade-dia">${visiveis.map((h) => {
         const bloq = bloqueados.find((b) => b.horaInicio === h);
 
-        // horario fechado manualmente
         if (bloq) {
           return `<div class="horario fechado">
               <div class="h">${h}</div>
@@ -138,24 +139,12 @@
             </div>`;
         }
 
-        if (!ag) {
-          return `<div class="horario clicavel" data-livre="${h}" title="Clique para agendar neste horario">
-              <div class="h">${h}</div>
-              <div class="c">Livre<br><small style="color:#6b6b7b">clique para agendar</small></div>
-              ${ehAdmin ? `<div style="margin-top:8px">
-                <button class="btn btn-secundario btn-sm" data-fechar="${h}">Fechar</button>
-              </div>` : ""}
-            </div>`;
-        }
-
-        return `<div class="horario ocupado">
+        return `<div class="horario clicavel" data-livre="${h}" title="Clique para agendar neste horario">
             <div class="h">${h}</div>
-            <div class="c">${escaparHtml(ag.clienteNome)}<br>${escaparHtml(ag.servicoNome || "")}</div>
-            <div class="s">${escaparHtml(ag.status)}</div>
-            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-              ${ag.status === "pendente" ? `<button class="btn btn-sucesso btn-sm" data-confirmar="${ag.id}">Confirmar</button>` : ""}
-              <button class="btn btn-perigo btn-sm" data-cancelar="${ag.id}">Cancelar</button>
-            </div>
+            <div class="c">Livre<br><small style="color:#6b6b7b">clique para agendar</small></div>
+            ${ehAdmin ? `<div style="margin-top:8px">
+              <button class="btn btn-secundario btn-sm" data-fechar="${h}">Fechar</button>
+            </div>` : ""}
           </div>`;
       }).join("")}</div>`;
 
@@ -183,13 +172,6 @@
             toast(mensagemErro(e), "erro");
           }
         }
-      );
-
-      grade.querySelectorAll("[data-confirmar]").forEach((b) =>
-        b.onclick = async () => { await definirStatus(b.dataset.confirmar, "confirmado"); toast("Agendamento confirmado."); pintar(); }
-      );
-      grade.querySelectorAll("[data-cancelar]").forEach((b) =>
-        b.onclick = async () => { await definirStatus(b.dataset.cancelar, "cancelado"); toast("Agendamento cancelado.", "aviso"); pintar(); }
       );
     }
 
