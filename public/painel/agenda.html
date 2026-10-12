@@ -112,21 +112,29 @@
 
       let lista = [];
       let bloqueados = [];
+      let erro = null;
+
       try {
-        bloqueados = ehAdmin ? await listarBloqueios(data) : [];
+        lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
       } catch (e) {
-        console.warn("bloqueios:", e.message);
+        erro = "agendamentos: " + (e.message || e.code);
+        console.error(erro);
       }
-      try {
-        bloqueados = await listarBloqueios(data);
-      } catch (e) {
-        console.warn("bloqueios:", e.message);
+
+      if (ehAdmin) {
+        try {
+          bloqueados = await listarBloqueios(data);
+        } catch (e) {
+          console.warn("bloqueios:", e.message);
+        }
       }
 
       // Horarios ja agendados somem da grade.
       const visiveis = gerarHorarios().filter((h) => !lista.some((a) => a.horaInicio === h));
 
-      grade.innerHTML = `<div class="grade-dia">${visiveis.map((h) => {
+            grade.innerHTML = `${erro ? `<div class="alerta alerta-erro" style="margin-bottom:12px">
+          Falha ao carregar os agendamentos:<br><code style="font-size:12px">${escaparHtml(erro)}</code></div>` : ""}
+        <div class="grade-dia">${visiveis.map((h) => {
         const bloq = bloqueados.find((b) => b.horaInicio === h);
 
         if (bloq) {
@@ -279,7 +287,13 @@
       try {
         await salvarAgendamento(ag);
         modal.hidden = true;
-        toast("Agendamento criado. O horario ficou travado.");
+        // se agendou em outra data, joga a grade para essa data
+        if (data !== campoData.value) {
+          campoData.value = data;
+          toast(`Agendamento criado em ${data.split("-").reverse().join("/")}.`);
+        } else {
+          toast("Agendamento criado. O horario ficou travado.");
+        }
         pintar();
       } catch (e) {
         aviso(mensagemErro(e));
