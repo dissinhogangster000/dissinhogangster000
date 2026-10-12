@@ -76,11 +76,13 @@
     import { iniciarPagina, toast } from "./layout.js";
     import {
       listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
+      lerConfiguracaoHorarios, gerarSlots, diaSemanaDe,
       hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
 
     await iniciarPagina("agenda");
     let servicos = [];
+    let cfg = await lerConfiguracaoHorarios();
 
     const campoData = document.getElementById("data");
     const grade = document.getElementById("grade");
@@ -94,18 +96,24 @@
       '<option value="">Selecione um servico</option>' +
       servicos.map((s) => `<option value="${escaparHtml(s.id)}">${escaparHtml(s.nome)} (${s.duracaoMin}min)</option>`).join("");
 
-    const gerarHorarios = () => {
-      const horas = [];
-      for (let h = 8; h < 20; h++) horas.push(`${String(h).padStart(2, "0")}:00`, `${String(h).padStart(2, "0")}:30`);
-      return horas;
+    const avisoDiaFechado = (dia) => {
+      const nomes = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
+      return `<div class="vazio"><i class="fas fa-door-closed"></i>Sem atendimento ${nomes[dia]}.<br>
+        <a class="link-suave" href="horarios.html">Alterar dias e horarios</a></div>`;
     };
 
     async function pintar() {
       const data = campoData.value || hojeISO();
       grade.innerHTML = '<div class="carregando">Carregando...</div>';
       const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+      const dia = diaSemanaDe(data);
 
-      grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
+      if (cfg.ativo !== false && !cfg.diasSemana.includes(dia)) {
+        grade.innerHTML = avisoDiaFechado(dia);
+        return;
+      }
+
+      grade.innerHTML = `<div class="grade-dia">${gerarSlots(cfg).map((h) => {
         const ag = lista.find((a) => a.horaInicio === h);
         if (!ag) return `<div class="horario"><div class="h">${h}</div><div class="c">Livre</div></div>`;
         return `<div class="horario ocupado">
