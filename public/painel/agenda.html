@@ -134,9 +134,9 @@
         }
 
         if (!ag) {
-          return `<div class="horario">
+          return `<div class="horario clicavel" data-livre="${h}" title="Clique para agendar neste horario">
               <div class="h">${h}</div>
-              <div class="c">Livre</div>
+              <div class="c">Livre<br><small style="color:#6b6b7b">clique para agendar</small></div>
               <div style="margin-top:8px">
                 <button class="btn btn-secundario btn-sm" data-fechar="${h}">Fechar</button>
               </div>
@@ -195,11 +195,24 @@
         <code style="font-size:12px">${escaparHtml(e.message || String(e))}</code></div>`;
     });
 
-    document.getElementById("btnNovo").addEventListener("click", () => {
+    function abrirNovo(horaPreenchida = "") {
       modal.hidden = false;
       modalMsg.style.display = "none";
+      document.getElementById("mCliente").value = "";
+      document.getElementById("mTelefone").value = "";
+      document.getElementById("mEmail").value = "";
+      document.getElementById("mObs").value = "";
       document.getElementById("mData").value = campoData.value || hojeISO();
-      document.getElementById("mHora").value = "09:00";
+      document.getElementById("mHora").value = horaPreenchida || "09:00";
+    }
+
+    document.getElementById("btnNovo").addEventListener("click", () => abrirNovo());
+
+    // clicar num horario livre abre o formulario ja com o horario
+    grade.addEventListener("click", (ev) => {
+      if (ev.target.closest("[data-fechar]") || ev.target.closest("button")) return;
+      const card = ev.target.closest("[data-livre]");
+      if (card) abrirNovo(card.dataset.livre);
     });
 
     document.getElementById("btnCancelar").addEventListener("click", () => { modal.hidden = true; });

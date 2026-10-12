@@ -322,6 +322,10 @@ tbody tr:hover { background: #fcfcfe; }
 .horario .s { font-size: 11px; color: var(--sucesso); font-weight: 600; margin-top: 4px; }
 .horario.ocupado { background: var(--primaria-clara); border-color: var(--primaria); }
 
+.horario.clicavel { cursor: pointer; }
+.horario.clicavel:hover { border-color: var(--primaria); background: var(--primaria-clara); }
+.horario.clicavel:hover .c { color: var(--primaria-escura); }
+
 .horario.fechado {
   background: repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 6px, #eceef2 6px, #eceef2 12px);
   border-color: #d8dae2;
