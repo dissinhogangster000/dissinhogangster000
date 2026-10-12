@@ -139,6 +139,68 @@ export async function excluirServico(id) {
   await deleteDoc(doc(db, "servicos", id));
 }
 
+/* ---------- Horarios de trabalho (uso interno do painel) ---------- */
+
+export const HORARIOS_PADRAO = {
+  horaInicio: "08:00",
+  horaFim: "20:00",
+  intervaloMin: 30,
+  diasSemana: [1, 2, 3, 4, 5, 6],
+  ativo: true
+};
+
+export async function lerHorarios() {
+  try {
+    const snap = await getDoc(doc(db, "configuracoes", "horarios"));
+    if (!snap.exists()) return { ...HORARIOS_PADRAO };
+    const d = snap.data() || {};
+    return {
+      ...HORARIOS_PADRAO,
+      ...d,
+      diasSemana: Array.isArray(d.diasSemana) ? d.diasSemana : HORARIOS_PADRAO.diasSemana
+    };
+  } catch (e) {
+    console.warn("horarios:", e.message);
+    return { ...HORARIOS_PADRAO };
+  }
+}
+
+export async function salvarHorarios(cfg) {
+  await setDoc(doc(db, "configuracoes", "horarios"), {
+    horaInicio: cfg.horaInicio || HORARIOS_PADRAO.horaInicio,
+    horaFim: cfg.horaFim || HORARIOS_PADRAO.horaFim,
+    intervaloMin: Number(cfg.intervaloMin) || HORARIOS_PADRAO.intervaloMin,
+    diasSemana: cfg.diasSemana || HORARIOS_PADRAO.diasSemana,
+    ativo: cfg.ativo !== false,
+    atualizadoEm: serverTimestamp()
+  });
+}
+
+/** Lista de horarios "HH:MM" conforme a configuracao do painel. */
+export function gerarSlots(cfg) {
+  const c = { ...HORARIOS_PADRAO, ...cfg };
+  const [hi, mi] = String(c.horaInicio).split(":").map(Number);
+  const [hf, mf] = String(c.horaFim).split(":").map(Number);
+  const passo = Math.max(5, Number(c.intervaloMin) || 30);
+
+  let inicio = hi * 60 + mi;
+  const fim = hf * 60 + mf;
+  const slots = [];
+
+  while (inicio + passo <= fim) {
+    slots.push(`${String(Math.floor(inicio / 60)).padStart(2, "0")}:${String(inicio % 60).padStart(2, "0")}`);
+    inicio += passo;
+  }
+  return slots;
+}
+
+/** Dia da semana de uma data ISO (0 = domingo ... 6 = sabado). */
+export function diaSemanaDe(iso) {
+  if (!iso) return -1;
+  const [a, m, d] = iso.split("-").map(Number);
+  return new Date(a, m - 1, d).getDay();
+}
+
 /* ---------- Agendamentos ---------- */
 
 export async function listarAgendamentos({ data, status, limite } = {}) {
