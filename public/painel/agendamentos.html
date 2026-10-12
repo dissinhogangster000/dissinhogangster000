@@ -90,7 +90,7 @@
 
     document.getElementById("mailDestino").value = cfg.destino || "";
     document.getElementById("mailChave").value = cfg.chave || "";
-    document.getElementById("mailTeste").value = cfg.destino || "";
+    document.getElementById("mailTeste").value = cfg.teste || "point.of.inforcell@gmail.com";
 
     function pintarStatusMail() {
       if (emailConfigurado()) {
@@ -107,7 +107,8 @@
       try {
         await salvarConfigEmail({
           chave: document.getElementById("mailChave").value.trim(),
-          destino: document.getElementById("mailDestino").value.trim()
+          destino: document.getElementById("mailDestino").value.trim(),
+          teste: document.getElementById("mailTeste").value.trim()
         });
         pintarStatusMail();
         toast("Configuracao de e-mail salva.");

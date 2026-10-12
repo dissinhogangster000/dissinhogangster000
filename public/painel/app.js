@@ -296,7 +296,7 @@ export async function definirStatus(id, status) {
 /* ---------- Envio de e-mail ---------- */
 
 /** Configuracao de e-mail: chave no arquivo + ajustes salvos no painel. */
-let configEmail = { chave: EMAIL_CHAVE, destino: EMAIL_DESTINO };
+let configEmail = { chave: EMAIL_CHAVE, destino: EMAIL_DESTINO, teste: "" };
 
 export function lerConfigEmailArquivo() {
   return { ...configEmail };
@@ -309,6 +309,7 @@ export async function carregarConfigEmail() {
       const d = snap.data() || {};
       if (d.chave) configEmail.chave = d.chave;
       if (d.destino) configEmail.destino = d.destino;
+      if (d.teste) configEmail.teste = d.teste;
     }
   } catch (e) {
     console.warn("config email:", e.message);
@@ -316,12 +317,14 @@ export async function carregarConfigEmail() {
   return { ...configEmail };
 }
 
-export async function salvarConfigEmail({ chave, destino }) {
+export async function salvarConfigEmail({ chave, destino, teste }) {
   if (chave !== undefined) configEmail.chave = String(chave || "").trim();
   if (destino !== undefined) configEmail.destino = String(destino || "").trim();
+  if (teste !== undefined) configEmail.teste = String(teste || "").trim();
   await setDoc(doc(db, "configuracoes", "email"), {
     chave: configEmail.chave,
     destino: configEmail.destino,
+    teste: configEmail.teste,
     atualizadoEm: serverTimestamp()
   });
   return { ...configEmail };
