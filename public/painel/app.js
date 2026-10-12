@@ -139,6 +139,47 @@ export async function excluirServico(id) {
   await deleteDoc(doc(db, "servicos", id));
 }
 
+/* ---------- Horarios de atendimento ---------- */
+
+export const HORARIOS_PADRAO = { horaInicio: "08:00", horaFim: "20:00", intervaloMin: 30 };
+
+export async function lerHorarios() {
+  try {
+    const snap = await getDoc(doc(db, "configuracoes", "horarios"));
+    if (!snap.exists()) return { ...HORARIOS_PADRAO };
+    return { ...HORARIOS_PADRAO, ...(snap.data() || {}) };
+  } catch (e) {
+    console.warn("horarios:", e.message);
+    return { ...HORARIOS_PADRAO };
+  }
+}
+
+export async function salvarHorarios(cfg) {
+  await setDoc(doc(db, "configuracoes", "horarios"), {
+    horaInicio: cfg.horaInicio,
+    horaFim: cfg.horaFim,
+    intervaloMin: Number(cfg.intervaloMin) || 30,
+    atualizadoEm: serverTimestamp()
+  });
+}
+
+export function gerarSlots(cfg) {
+  const c = { ...HORARIOS_PADRAO, ...cfg };
+  const [hi, mi] = String(c.horaInicio).split(":").map(Number);
+  const [hf, mf] = String(c.horaFim).split(":").map(Number);
+  const passo = Math.max(5, Number(c.intervaloMin) || 30);
+
+  let inicio = hi * 60 + mi;
+  const fim = hf * 60 + mf;
+  const slots = [];
+
+  while (inicio + passo <= fim) {
+    slots.push(`${String(Math.floor(inicio / 60)).padStart(2, "0")}:${String(inicio % 60).padStart(2, "0")}`);
+    inicio += passo;
+  }
+  return slots;
+}
+
 /* ---------- Agendamentos ---------- */
 
 export async function listarAgendamentos({ data, status, limite } = {}) {
