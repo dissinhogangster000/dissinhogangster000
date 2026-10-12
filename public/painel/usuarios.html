@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuarios | Painel de Agendamento</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <div id="topo"></div>
+
+  <main class="conteudo">
+    <div class="cabecalho-pagina">
+      <h1>Usuarios</h1>
+      <p>Somente contas marcadas como <strong>administrador</strong> entram no painel.</p>
+    </div>
+
+    <div class="cartao">
+      <div class="alerta alerta-info">
+        Para liberar alguem: a pessoa cria a conta em <a class="link-suave" href="cadastro.html">Cadastro</a>,
+        aparece aqui com papel <strong>comum</strong>, e voce clica em <strong>Tornar admin</strong>.
+      </div>
+    </div>
+
+    <div id="tabela" class="carregando">Carregando...</div>
+  </main>
+
+  <script type="module">
+    import { iniciarPagina, toast, getPerfil } from "./layout.js";
+    import { listarUsuarios, definirPapel, excluirUsuario, EMAIL_DONO, formatarDataBR, escaparHtml, mensagemErro } from "./app.js";
+
+    const meuPerfil = await iniciarPagina("usuarios");
+    if (!meuPerfil) throw new Error("sem sessao");
+
+    const tabela = document.getElementById("tabela");
+
+    function dataDe(ts) {
+      if (!ts) return "-";
+      const d = ts?.toDate ? ts.toDate() : new Date(ts);
+      return isNaN(d) ? "-" : d.toLocaleDateString("pt-BR");
+    }
+
+    async function carregar() {
+      tabela.innerHTML = '<div class="carregando">Carregando...</div>';
+      const lista = await listarUsuarios();
+      const meuUid = meuPerfil.uid;
+
+      if (!lista.length) {
+        tabela.innerHTML = '<div class="cartao"><div class="vazio"><i class="fas fa-users"></i>Nenhum usuario cadastrado.</div></div>';
+        return;
+      }
+
+      tabela.innerHTML = `
+        <div class="tabela-envolve"><table>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Entrada</th><th>Papel</th><th></th></tr></thead>
+          <tbody>
+            ${lista.map((u) => {
+              const dono = (u.email || "").toLowerCase() === EMAIL_DONO;
+              const souEu = u.id === meuUid;
+              const admin = u.papel === "admin";
+              return `<tr>
+                <td><strong>${escaparHtml(u.nome || "-")}</strong>${souEu ? ' <small style="color:#6b6b7b">(voce)</small>' : ""}</td>
+                <td>${escaparHtml(u.email || "-")}${dono ? ' <small style="color:#6b6b7b">(dono)</small>' : ""}</td>
+                <td>${dataDe(u.criadoEm)}</td>
+                <td><span class="etiqueta ${admin ? "etiqueta-confirmado" : "etiqueta-cancelado"}">${admin ? "admin" : "comum"}</span></td>
+                <td>
+                  <div class="acoes">
+                    ${admin
+                      ? (dono || souEu ? '<small style="color:#6b6b7b">fixo</small>' : `<button class="btn btn-secundario btn-sm" data-comum="${u.id}">Tornar comum</button>`)
+                      : `<button class="btn btn-sucesso btn-sm" data-admin="${u.id}">Tornar admin</button>`}
+                    ${!souEu && !dono ? `<button class="btn btn-perigo btn-sm" data-del="${u.id}">Excluir</button>` : ""}
+                  </div>
+                </td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table></div>`;
+
+      tabela.querySelectorAll("[data-admin]").forEach((b) =>
+        b.onclick = async () => {
+          try { await definirPapel(b.dataset.admin, "admin"); toast("Acesso liberado."); carregar(); }
+          catch (e) { toast(mensagemErro(e), "erro"); }
+        }
+      );
+
+      tabela.querySelectorAll("[data-comum]").forEach((b) =>
+        b.onclick = async () => {
+          if (!confirm("Revogar o acesso de administrador?")) return;
+          try { await definirPapel(b.dataset.comum, "comum"); toast("Acesso revogado."); carregar(); }
+          catch (e) { toast(mensagemErro(e), "erro"); }
+        }
+      );
+
+      tabela.querySelectorAll("[data-del]").forEach((b) =>
+        b.onclick = async () => {
+          if (!confirm("Excluir este perfil? (A conta de login continua no Authentication)")) return;
+          try { await excluirUsuario(b.dataset.del); toast("Perfil removido."); carregar(); }
+          catch (e) { toast(mensagemErro(e), "erro"); }
+        }
+      );
+    }
+
+    carregar();
+  </script>
+</body>
+</html>

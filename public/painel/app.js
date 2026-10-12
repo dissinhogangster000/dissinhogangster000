@@ -66,28 +66,65 @@ async function salvarPerfil(user, tipo, nome) {
   if (snap.exists()) {
     await updateDoc(ref, dados);
   } else {
-    await setDoc(ref, { ...dados, criadoEm: serverTimestamp() });
+    await setDoc(ref, {
+      ...dados,
+      papel: ehDonoEmail(user.email) ? "admin" : "comum",
+      criadoEm: serverTimestamp()
+    });
   }
 }
 
-/** Garante que o perfil existe ao abrir qualquer pagina do painel. */
+/** E-mail do dono do projeto: sempre admin. */
+export const EMAIL_DONO = "dissinho.gangster000@gmail.com";
+
+function ehDonoEmail(email) {
+  return (email || "").toLowerCase() === EMAIL_DONO;
+}
+
+/** Garante que o perfil existe e devolve os dados (inclui papel). */
 export async function garantirPerfil(user) {
-  if (!user) return;
+  if (!user) return null;
+  const ref = doc(db, "usuarios", user.uid);
   try {
-    const ref = doc(db, "usuarios", user.uid);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       await setDoc(ref, {
         nome: user.displayName || (user.email || "").split("@")[0],
         email: user.email || "",
+        papel: ehDonoEmail(user.email) ? "admin" : "comum",
         tipoLogin: (user.providerData?.[0]?.providerId || "").includes("google") ? "google" : "email",
         criadoEm: serverTimestamp(),
         atualizadoEm: serverTimestamp()
       });
+      return { uid: user.uid, papel: ehDonoEmail(user.email) ? "admin" : "comum" };
     }
+
+    const dados = snap.data() || {};
+    // Dono sem papel definido vira admin.
+    if (!dados.papel && ehDonoEmail(user.email)) {
+      await updateDoc(ref, { papel: "admin", atualizadoEm: serverTimestamp() });
+      return { ...dados, uid: user.uid, papel: "admin" };
+    }
+    return { ...dados, uid: user.uid };
   } catch (e) {
     console.warn("perfil:", e.message);
+    return { uid: user.uid, papel: "comum" };
   }
+}
+
+/* ---------- Gestao de usuarios (somente admin) ---------- */
+
+export async function listarUsuarios() {
+  const snap = await getDocs(query(collection(db, "usuarios"), orderBy("nome")));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function definirPapel(uid, papel) {
+  await updateDoc(doc(db, "usuarios", uid), { papel, atualizadoEm: serverTimestamp() });
+}
+
+export async function excluirUsuario(uid) {
+  await deleteDoc(doc(db, "usuarios", uid));
 }
 
 export function observarAuth(callback) {

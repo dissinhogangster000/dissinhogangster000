@@ -4,10 +4,33 @@ const PAGINAS = {
   dashboard: { titulo: "Painel de Agendamento", arquivo: "dashboard.html" },
   agenda: { titulo: "Agenda", arquivo: "agenda.html" },
   agendamentos: { titulo: "Agendamentos", arquivo: "agendamentos.html" },
-  servicos: { titulo: "Servicos", arquivo: "servicos.html" }
+  servicos: { titulo: "Servicos", arquivo: "servicos.html" },
+  usuarios: { titulo: "Usuarios", arquivo: "usuarios.html" }
 };
 
 let usuarioAtual = null;
+let perfilAtual = null;
+
+/** Bloqueia a tela para quem nao e administrador. */
+function bloquear(perfil) {
+  document.body.innerHTML = `
+    <div class="login-body">
+      <div class="login-wrap">
+        <div class="login-cartao" style="text-align:center">
+          <div class="login-marca"><i class="fas fa-user-lock"></i> Acesso restrito</div>
+          <p class="login-sub">Somente administradores podem usar este painel.</p>
+          <div class="alerta alerta-aviso" style="text-align:left">
+            Voce esta autenticado como <strong>${(perfil?.email || "").replace(/[<>&"]/g, "")}</strong>,
+            mas sua conta ainda nao foi liberada como administrador.
+            Peça a um administrador para liberar seu acesso.
+          </div>
+          <button class="btn btn-primario btn-bloco" id="btnSairBloq">Sair da conta</button>
+        </div>
+      </div>
+    </div>`;
+  const b = document.getElementById("btnSairBloq");
+  if (b) b.onclick = async () => { await sair(); location.href = "login.html"; };
+}
 
 /** Monta o topo, aplica guarda de login e marca o menu ativo. */
 export async function iniciarPagina(chaveAtiva) {
@@ -20,7 +43,12 @@ export async function iniciarPagina(chaveAtiva) {
     return null;
   }
 
-  await garantirPerfil(usuarioAtual);
+  perfilAtual = await garantirPerfil(usuarioAtual);
+
+  if (perfilAtual?.papel !== "admin") {
+    bloquear(perfilAtual);
+    return null;
+  }
 
   const topo = document.getElementById("topo");
   if (!topo) return usuarioAtual;
@@ -54,6 +82,10 @@ export async function iniciarPagina(chaveAtiva) {
 
 export function getUsuario() {
   return usuarioAtual;
+}
+
+export function getPerfil() {
+  return perfilAtual;
 }
 
 export function toast(texto, tipo = "ok") {
