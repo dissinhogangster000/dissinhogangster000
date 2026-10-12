@@ -58,9 +58,7 @@
         </div>
         <div class="form-linha">
           <label for="mHora">Horario</label>
-          <select id="mHora" required>
-            <option value="">Selecione o horario</option>
-          </select>
+          <input type="time" id="mHora" value="09:00" step="1800" required>
         </div>
         <div class="form-linha col-2">
           <label for="mObs">Observacoes</label>
@@ -78,22 +76,18 @@
     import { iniciarPagina, toast } from "./layout.js";
     import {
       listarAgendamentos, listarServicos, salvarAgendamento, definirStatus,
+      lerConfiguracaoHorarios, gerarSlots, diaSemanaDe,
       hojeISO, somarMinutos, escaparHtml, mensagemErro
     } from "./app.js";
 
     await iniciarPagina("agenda");
     let servicos = [];
+    let cfg = await lerConfiguracaoHorarios();
 
     const campoData = document.getElementById("data");
     const grade = document.getElementById("grade");
     const modal = document.getElementById("modal");
     const modalMsg = document.getElementById("modalMsg");
-
-    const gerarHorarios = () => {
-      const horas = [];
-      for (let h = 8; h < 20; h++) horas.push(`${String(h).padStart(2, "0")}:00`, `${String(h).padStart(2, "0")}:30`);
-      return horas;
-    };
 
     campoData.value = hojeISO();
     servicos = await listarServicos();
@@ -102,12 +96,24 @@
       '<option value="">Selecione um servico</option>' +
       servicos.map((s) => `<option value="${escaparHtml(s.id)}">${escaparHtml(s.nome)} (${s.duracaoMin}min)</option>`).join("");
 
+    const avisoDiaFechado = (dia) => {
+      const nomes = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
+      return `<div class="vazio"><i class="fas fa-door-closed"></i>Sem atendimento ${nomes[dia]}.<br>
+        <a class="link-suave" href="horarios.html">Alterar dias e horarios</a></div>`;
+    };
+
     async function pintar() {
       const data = campoData.value || hojeISO();
       grade.innerHTML = '<div class="carregando">Carregando...</div>';
       const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+      const dia = diaSemanaDe(data);
 
-      grade.innerHTML = `<div class="grade-dia">${gerarHorarios().map((h) => {
+      if (cfg.ativo !== false && !cfg.diasSemana.includes(dia)) {
+        grade.innerHTML = avisoDiaFechado(dia);
+        return;
+      }
+
+      grade.innerHTML = `<div class="grade-dia">${gerarSlots(cfg).map((h) => {
         const ag = lista.find((a) => a.horaInicio === h);
         if (!ag) return `<div class="horario"><div class="h">${h}</div><div class="c">Livre</div></div>`;
         return `<div class="horario ocupado">
@@ -132,29 +138,12 @@
     campoData.addEventListener("change", pintar);
     pintar();
 
-    async function preencherHorarios(data) {
-      const lista = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
-      const ocupados = new Set(lista.map((a) => a.horaInicio));
-      const sel = document.getElementById("mHora");
-      const anterior = sel.value;
-
-      sel.innerHTML = '<option value="">Selecione o horario</option>' +
-        gerarHorarios().map((h) => `
-          <option value="${h}" ${ocupados.has(h) ? "disabled" : ""}>
-            ${h}${ocupados.has(h) ? " - ocupado" : ""}
-          </option>`).join("");
-
-      if (anterior && !ocupados.has(anterior)) sel.value = anterior;
-    }
-
-    document.getElementById("btnNovo").addEventListener("click", async () => {
+    document.getElementById("btnNovo").addEventListener("click", () => {
       modal.hidden = false;
       modalMsg.style.display = "none";
       document.getElementById("mData").value = campoData.value || hojeISO();
-      await preencherHorarios(document.getElementById("mData").value || hojeISO());
+      document.getElementById("mHora").value = "09:00";
     });
-
-    document.getElementById("mData").addEventListener("change", (e) => preencherHorarios(e.target.value));
 
     document.getElementById("btnCancelar").addEventListener("click", () => { modal.hidden = true; });
 
@@ -172,11 +161,6 @@
 
       const servicoId = document.getElementById("mServico").value;
       const servico = servicos.find((s) => s.id === servicoId);
-
-      const jaExiste = (await listarAgendamentos({ data }))
-        .filter((a) => a.status !== "cancelado")
-        .find((a) => a.horaInicio === hora);
-      if (jaExiste) return aviso("Este horario ja esta ocupado. Escolha outro.");
 
       const ag = {
         clienteNome: cliente,
