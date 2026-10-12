@@ -46,13 +46,30 @@
     import {
       listarAgendamentos, definirStatus, excluirAgendamento, salvarAgendamento,
       listarSolicitacoes, resolverSolicitacao, somarMinutos,
-      mensagemConfirmacao, linkWhatsApp,
+      mensagemConfirmacao, linkWhatsApp, enviarEmailConfirmacao, emailConfigurado,
       formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
     } from "./app.js";
 
     await iniciarPagina("agendamentos");
     const tabela = document.getElementById("tabela");
     const boxSolic = document.getElementById("solic");
+
+    /** Avisa se o e-mail automatico esta ativo. */
+    if (!emailConfigurado()) {
+      const aviso = document.createElement("div");
+      aviso.className = "alerta alerta-aviso";
+      aviso.style.marginBottom = "16px";
+      aviso.innerHTML = "<strong>E-mail automatico desativado.</strong> Configure a chave em <code>config.js</code> para enviar confirmacoes.";
+      document.querySelector(".conteudo").prepend(aviso);
+    }
+
+    /** Envia o e-mail e avisa o resultado. */
+    async function avisarPorEmail(ag, tipo) {
+      const r = await enviarEmailConfirmacao(ag, tipo);
+      if (r.motivo === "nao-configurado") return;
+      if (r.motivo === "sem-email") { toast("Agendamento sem e-mail: nao foi possivel avisar.", "aviso"); return; }
+      toast(r.ok ? "E-mail de confirmacao enviado." : "Falha ao enviar o e-mail.", r.ok ? "ok" : "erro");
+    }
 
     /* ---- Pedidos do cliente ---- */
 
@@ -99,9 +116,12 @@
         b.onclick = async () => {
           try {
             const agId = b.dataset.ag;
+            const alvo = (await listarAgendamentos({})).find((a) => a.id === agId);
+
             if (b.dataset.tipo === "cancelamento") {
               await definirStatus(agId, "cancelado");
               toast("Cancelamento aprovado.");
+              await avisarPorEmail(alvo, "cancelamento");
             } else {
               const dia = (await listarAgendamentos({ data: b.dataset.nd }))
                 .filter((a) => a.status !== "cancelado");
@@ -130,6 +150,10 @@
                 observacoes: original.observacoes
               });
               toast("Alteracao aprovada.");
+              await avisarPorEmail(
+                { ...original, data: b.dataset.nd, horaInicio: b.dataset.nh },
+                "alteracao"
+              );
             }
             await resolverSolicitacao(b.dataset.aprovar, "aprovada");
             carregarSolicitacoes();
@@ -200,7 +224,16 @@
         </table></div>`;
 
       tabela.querySelectorAll("[data-st]").forEach((b) =>
-        b.onclick = async () => { await definirStatus(b.dataset.st, b.dataset.valor); toast("Status atualizado."); carregar(); }
+        b.onclick = async () => {
+          const alvo = lista.find((x) => x.id === b.dataset.st);
+          await definirStatus(b.dataset.st, b.dataset.valor);
+          toast("Status atualizado.");
+          carregar();
+          // dispara o e-mail automatico na confirmacao
+          if (b.dataset.valor === "confirmado" && alvo) {
+            await avisarPorEmail({ ...alvo, status: "confirmado" }, "confirmacao");
+          }
+        }
       );
 
       tabela.querySelectorAll("[data-zap]").forEach((b) =>

@@ -26,9 +26,9 @@ import {
   serverTimestamp,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-import { firebaseConfig } from "./config.js";
+import { firebaseConfig, WHATSAPP_CONFIRMACAO, EMAIL_DESTINO, EMAIL_CHAVE } from "./config.js";
 export { firebaseConfig };
-export { WHATSAPP_CONFIRMACAO } from "./config.js";
+export { WHATSAPP_CONFIRMACAO, EMAIL_DESTINO, EMAIL_CHAVE } from "./config.js";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -291,6 +291,92 @@ export async function listarMeusAgendamentos(email) {
 
 export async function definirStatus(id, status) {
   await updateDoc(doc(db, "agendamentos", id), { status, atualizadoEm: serverTimestamp() });
+}
+
+/* ---------- Envio de e-mail ---------- */
+
+export function emailConfigurado() {
+  return !!EMAIL_CHAVE && !EMAIL_CHAVE.startsWith("COLE_AQUI");
+}
+
+/**
+ * Envia o e-mail de confirmacao para o cliente.
+ * Silencioso: se nao houver chave configurada, apenas nao envia.
+ */
+export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
+  if (!emailConfigurado()) return { ok: false, motivo: "nao-configurado" };
+  if (!ag?.clienteEmail) return { ok: false, motivo: "sem-email" };
+
+  const quando = tipo === "alteracao"
+    ? "Seu horario foi alterado"
+    : tipo === "cancelamento"
+      ? "Seu agendamento foi cancelado"
+      : "Seu agendamento esta confirmado";
+
+  const assunto = `${quando} - Dra. Edilaine Silva`;
+
+  const corpo = `
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;max-width:520px;margin:0 auto;background:#f7f7fb;padding:24px;border-radius:14px">
+  <div style="background:#ffffff;border-radius:12px;padding:28px;border:1px solid #e6e6ef">
+    <div style="text-align:center;margin-bottom:22px">
+      <div style="display:inline-block;background:#7c5cbf;color:#fff;padding:10px 18px;border-radius:10px;font-weight:700">
+        Edilaine Psicanálise
+      </div>
+    </div>
+
+    <h1 style="font-size:20px;color:#1c1c28;margin:0 0 6px">Olá, ${escaparHtml(ag.clienteNome || "")}!</h1>
+    <p style="font-size:15px;color:#6b6b7b;margin:0 0 22px">${quando}.</p>
+
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:22px">
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b;width:110px">Data</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${formatarDataBR(ag.data)}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">Horário</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${escaparHtml(ag.horaInicio)} às ${escaparHtml(ag.horaFim)}</td>
+      </tr>
+      ${ag.servicoNome ? `<tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">Serviço</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${escaparHtml(ag.servicoNome)}</td>
+      </tr>` : ""}
+      ${ag.valor ? `<tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#6b6b7b">Valor</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f0f5;color:#1c1c28;font-weight:600">${formatarMoeda(ag.valor)}</td>
+      </tr>` : ""}
+    </table>
+
+    <div style="background:#f0ebfb;border-radius:10px;padding:14px 16px;font-size:13.5px;color:#5f44a0">
+      Precisa alterar ou cancelar? Fale pelo WhatsApp:
+      <strong>(11) 99652-0207</strong>
+    </div>
+
+    <p style="margin:22px 0 0;font-size:13px;color:#6b6b7b">
+      Dra. Edilaine Silva &middot; Psicóloga Clínica &middot; CRP 06/123456<br>
+      Suzano - SP
+    </p>
+  </div>
+</div>`;
+
+  try {
+    const res = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        access_key: EMAIL_CHAVE,
+        from_name: "Edilaine Psicanálise",
+        replyto: ag.clienteEmail,
+        to: EMAIL_DESTINO,
+        subject: assunto,
+        html: corpo,
+        text: `${quando}\n\nCliente: ${ag.clienteNome}\nData: ${formatarDataBR(ag.data)}\nHorário: ${ag.horaInicio} às ${ag.horaFim}\nServiço: ${ag.servicoNome || "-"}\n\nDra. Edilaine Silva - Suzano/SP`
+      })
+    });
+    const j = await res.json().catch(() => ({}));
+    return { ok: !!j.success, resposta: j };
+  } catch (e) {
+    return { ok: false, motivo: e.message };
+  }
 }
 
 /* ---------- Solicitacoes do cliente (nao alteram o agendamento) ---------- */
