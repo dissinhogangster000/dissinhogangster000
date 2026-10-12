@@ -72,6 +72,26 @@ async function salvarPerfil(user, tipo, nome) {
   }
 }
 
+/** Garante que o perfil existe ao abrir qualquer pagina do painel. */
+export async function garantirPerfil(user) {
+  if (!user) return;
+  try {
+    const ref = doc(db, "usuarios", user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        nome: user.displayName || (user.email || "").split("@")[0],
+        email: user.email || "",
+        tipoLogin: (user.providerData?.[0]?.providerId || "").includes("google") ? "google" : "email",
+        criadoEm: serverTimestamp(),
+        atualizadoEm: serverTimestamp()
+      });
+    }
+  } catch (e) {
+    console.warn("perfil:", e.message);
+  }
+}
+
 export function observarAuth(callback) {
   return onAuthStateChanged(auth, callback);
 }

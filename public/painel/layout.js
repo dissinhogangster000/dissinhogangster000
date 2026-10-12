@@ -1,4 +1,4 @@
-import { observarAuth, sair } from "./app.js";
+import { observarAuth, sair, garantirPerfil } from "./app.js";
 
 const PAGINAS = {
   dashboard: { titulo: "Painel de Agendamento", arquivo: "dashboard.html" },
@@ -19,6 +19,8 @@ export async function iniciarPagina(chaveAtiva) {
     location.replace("login.html");
     return null;
   }
+
+  await garantirPerfil(usuarioAtual);
 
   const topo = document.getElementById("topo");
   if (!topo) return usuarioAtual;
