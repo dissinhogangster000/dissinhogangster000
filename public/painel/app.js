@@ -391,18 +391,21 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
   </div>
 </div>`;
 
-  try {
+  const textoSimples = `${quando}\n\nCliente: ${ag.clienteNome}\nData: ${formatarDataBR(ag.data)}\nHorário: ${ag.horaInicio} às ${ag.horaFim}\nServiço: ${ag.servicoNome || "-"}\n\nDra. Edilaine Silva - Suzano/SP`;
+
+  /** Um envio pela API do web3forms. */
+  const post = async (destinatario, assuntoLocal, corpoLocal, textoLocal) => {
     const res = await fetch("https://api.web3forms.com/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
         access_key: configEmail.chave,
         from_name: "Edilaine Psicanálise",
-        replyto: ag.clienteEmail,
-        to: configEmail.destino,
-        subject: assunto,
-        html: corpo,
-        text: `${quando}\n\nCliente: ${ag.clienteNome}\nData: ${formatarDataBR(ag.data)}\nHorário: ${ag.horaInicio} às ${ag.horaFim}\nServiço: ${ag.servicoNome || "-"}\n\nDra. Edilaine Silva - Suzano/SP`
+        replyto: destinatario,
+        to: destinatario,
+        subject: assuntoLocal,
+        html: corpoLocal,
+        text: textoLocal
       })
     });
     const j = await res.json().catch(() => ({}));
@@ -410,7 +413,22 @@ export async function enviarEmailConfirmacao(ag, tipo = "confirmacao") {
       console.error("web3forms:", res.status, j);
       return { ok: false, status: res.status, detalhe: j?.message || `HTTP ${res.status}` };
     }
-    return { ok: true, resposta: j };
+    return { ok: true };
+  };
+
+  try {
+    // 1) confirmacao para o CLIENTE
+    const paraCliente = await post(ag.clienteEmail, assunto, corpo, textoSimples);
+
+    // 2) copia para a profissional (notificacao de que saiu)
+    let copia = { ok: true };
+    const meu = String(configEmail.destino || "").trim().toLowerCase();
+    if (meu && meu !== String(ag.clienteEmail || "").trim().toLowerCase()) {
+      copia = await post(meu, `[copia] ${assunto}`, corpo, textoSimples);
+    }
+
+    if (!paraCliente.ok) return { ...paraCliente, quem: "cliente" };
+    return { ok: true, copia: copia.ok };
   } catch (e) {
     return { ok: false, motivo: e.message, detalhe: "Falha de rede ao contatar o servico de e-mail." };
   }

@@ -59,9 +59,9 @@
         <button class="btn btn-secundario" id="btnMailTestar"><i class="fas fa-paper-plane"></i> Enviar teste</button>
       </div>
       <small style="color:#6b6b7b;display:block;margin-top:12px">
-        O e-mail so e aceito se o endereco for exatamente o mesmo usado na conta do servico.
-        No primeiro acesso, confira se a mensagem chega no spam.
-      </small>
+          A confirmacao vai para o <strong>e-mail do cliente</strong> cadastrado no agendamento.
+          O campo acima e para voce receber uma copia e para o endereco da conta no servico.
+        </small>
     </div>
 
     <div id="solic" class="carregando">Carregando...</div>
@@ -136,9 +136,17 @@
     async function avisarPorEmail(ag, tipo) {
       const r = await enviarEmailConfirmacao(ag, tipo);
       if (r.motivo === "nao-configurado") return;
-      if (r.motivo === "sem-email") { toast("Agendamento sem e-mail: nao foi possivel avisar.", "aviso"); return; }
-      if (r.ok) { toast("E-mail de confirmacao enviado."); return; }
-      toast("Falha no e-mail: " + (r.detalhe || "erro desconhecido"), "erro");
+      if (r.motivo === "sem-email") {
+        toast("Agendamento sem e-mail do cliente: avise pelo WhatsApp.", "aviso");
+        return;
+      }
+      if (r.ok) {
+        toast(r.copia === false
+          ? "E-mail enviado ao cliente (a copia falhou)."
+          : "E-mail enviado ao cliente e para voce.");
+        return;
+      }
+      toast("Falha no e-mail (" + (r.quem || "cliente") + "): " + (r.detalhe || "erro desconhecido"), "erro");
     }
 
     /* ---- Pedidos do cliente ---- */
