@@ -24,9 +24,39 @@
     <div id="tabela" class="carregando">Carregando...</div>
   </main>
 
+  <div id="modalSol" class="modal-fundo" hidden>
+    <div class="modal">
+      <h2 id="solTitulo">Solicitar alteracao</h2>
+      <div id="solMsg" class="alerta" style="display:none"></div>
+      <p id="solAtual" style="color:#6b6b7b;font-size:13.5px;margin:0 0 14px"></p>
+      <div class="form-grid" id="blocoAlt" style="display:flex">
+        <div class="form-linha">
+          <label for="solData">Nova data</label>
+          <input type="date" id="solData">
+        </div>
+        <div class="form-linha">
+          <label for="solHora">Novo horario</label>
+          <input type="time" id="solHora" step="900">
+        </div>
+        <div class="form-linha col-2">
+          <label for="solMotivo">Motivo (opcional)</label>
+          <textarea id="solMotivo" placeholder="Conte o motivo da solicitacao"></textarea>
+        </div>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" id="btnSolCancelar">Fechar</button>
+        <button class="btn btn-primario" id="btnSolEnviar"><i class="fas fa-paper-plane"></i> Enviar pedido</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
-    import { iniciarPagina, getPerfil } from "./layout.js";
-    import { listarMeusAgendamentos, formatarDataBR, formatarMoeda, escaparHtml, mensagemErro } from "./app.js";
+    import { iniciarPagina, getPerfil, toast } from "./layout.js";
+    import {
+      listarMeusAgendamentos, listarAgendamentos,
+      criarSolicitacao, listarSolicitacoesDoAgendamento,
+      formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
+    } from "./app.js";
 
     const usuario = await iniciarPagina("meus");
     if (!usuario) throw new Error("sem sessao");
@@ -65,7 +95,7 @@
 
       tabela.innerHTML = `
         <div class="tabela-envolve"><table>
-          <thead><tr><th>Data</th><th>Horario</th><th>Servico</th><th>Status</th><th>Valor</th></tr></thead>
+          <thead><tr><th>Data</th><th>Horario</th><th>Servico</th><th>Status</th><th>Valor</th><th></th></tr></thead>
           <tbody>
             ${lista.map((a) => `
               <tr>
@@ -74,15 +104,129 @@
                 <td>${escaparHtml(a.servicoNome || "-")}</td>
                 <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span></td>
                 <td>${a.valor ? formatarMoeda(a.valor) : "-"}</td>
+                <td>
+                  <div class="acoes" data-acoes="${a.id}">
+                    <button class="btn btn-secundario btn-sm" data-alt="${a.id}">Solicitar alteracao</button>
+                    <button class="btn btn-perigo btn-sm" data-canc="${a.id}">Solicitar cancelamento</button>
+                  </div>
+                  <div id="st-${a.id}" style="margin-top:6px"></div>
+                </td>
               </tr>`).join("")}
           </tbody>
         </table></div>
 
         <p style="color:#6b6b7b;font-size:13px;margin-top:12px">
-          <i class="fas fa-lock"></i>
-          Esta tela e somente de consulta: nao e possivel alterar ou cancelar por aqui.
+          <i class="fas fa-info-circle"></i>
+          Os botoes acima enviam um <strong>pedido</strong>: nada e alterado automaticamente.
+          O profissional analisa e responde pelo painel.
         </p>`;
+
+      tabela.querySelectorAll("[data-alt]").forEach((b) =>
+        b.onclick = () => abrirSolicitacao(b.dataset.alt, "alteracao")
+      );
+      tabela.querySelectorAll("[data-canc]").forEach((b) =>
+        b.onclick = () => abrirSolicitacao(b.dataset.canc, "cancelamento")
+      );
+
+      for (const a of lista) mostrarSituacao(a.id);
     }
+
+    async function mostrarSituacao(id) {
+      const box = document.getElementById("st-" + id);
+      if (!box) return;
+      try {
+        const sol = await listarSolicitacoesDoAgendamento(id);
+        if (!sol.length) return;
+        const ultima = sol[0];
+        const mapa = {
+          pendente: ["Solicitacao pendente", "etiqueta-pendente"],
+          aprovada: ["Pedido aprovado", "etiqueta-confirmado"],
+          recusada: ["Pedido recusado", "etiqueta-cancelado"]
+        };
+        const [txt, cls] = mapa[ultima.status] || ["", "etiqueta-pendente"];
+        box.innerHTML = `<span class="etiqueta ${cls}" style="font-size:11px">${txt}</span>`;
+      } catch {}
+    }
+
+    /* ---- Formulario de solicitacao ---- */
+
+    const modalSol = document.getElementById("modalSol");
+    const solMsg = document.getElementById("solMsg");
+    let solCtx = null;
+
+    async function abrirSolicitacao(id, tipo) {
+      const ag = (await listarMeusAgendamentos(email)).find((x) => x.id === id);
+      if (!ag) return;
+
+      const msg = await verificarDisponibilidade(ag);
+      if (msg) { toast(msg, "erro"); return; }
+
+      solCtx = { ag, tipo };
+      solMsg.style.display = "none";
+      document.getElementById("solTitulo").textContent =
+        tipo === "cancelamento" ? "Solicitar cancelamento" : "Solicitar alteracao de horario";
+      document.getElementById("solAtual").textContent =
+        `Atual: ${formatarDataBR(ag.data)} as ${ag.horaInicio} - ${ag.horaFim}`;
+
+      const blocoAlt = document.getElementById("blocoAlt");
+      blocoAlt.style.display = tipo === "alteracao" ? "flex" : "none";
+      document.getElementById("solData").value = ag.data;
+      document.getElementById("solHora").value = ag.horaInicio;
+      document.getElementById("solMotivo").value = "";
+
+      modalSol.hidden = false;
+    }
+
+    async function verificarDisponibilidade(ag) {
+      const data = document.getElementById("solData").value || ag.data;
+      const hora = document.getElementById("solHora").value || ag.horaInicio;
+      if (data === ag.data && hora === ag.horaInicio) return null;
+      const doDia = (await listarAgendamentos({ data })).filter((a) => a.status !== "cancelado");
+      if (doDia.some((a) => a.horaInicio === hora)) return "Esse horario ja esta ocupado.";
+      return null;
+    }
+
+    document.getElementById("solData").addEventListener("change", async () => {
+      if (!solCtx) return;
+      const msg = await verificarDisponibilidade(solCtx.ag);
+      solMsg.style.display = "block";
+      solMsg.className = "alerta alerta-" + (msg ? "erro" : "ok");
+      solMsg.textContent = msg || "Horario disponivel.";
+    });
+
+    document.getElementById("btnSolCancelar").onclick = () => { modalSol.hidden = true; };
+
+    document.getElementById("btnSolEnviar").onclick = async () => {
+      if (!solCtx) return;
+      const { ag, tipo } = solCtx;
+      const aviso = await verificarDisponibilidade(ag);
+      if (aviso) {
+        solMsg.style.display = "block";
+        solMsg.className = "alerta alerta-erro";
+        solMsg.textContent = aviso;
+        return;
+      }
+      try {
+        await criarSolicitacao({
+          agendamentoId: ag.id,
+          tipo,
+          clienteNome: ag.clienteNome,
+          clienteEmail: email,
+          dataAtual: ag.data,
+          horaAtual: ag.horaInicio,
+          dataNova: document.getElementById("solData").value,
+          horaNova: document.getElementById("solHora").value,
+          motivo: document.getElementById("solMotivo").value.trim()
+        });
+        modalSol.hidden = true;
+        toast("Pedido enviado. Aguarde a resposta.");
+        carregar();
+      } catch (e) {
+        solMsg.style.display = "block";
+        solMsg.className = "alerta alerta-erro";
+        solMsg.textContent = mensagemErro(e);
+      }
+    };
 
     carregar();
   </script>

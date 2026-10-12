@@ -293,6 +293,43 @@ export async function definirStatus(id, status) {
   await updateDoc(doc(db, "agendamentos", id), { status, atualizadoEm: serverTimestamp() });
 }
 
+/* ---------- Solicitacoes do cliente (nao alteram o agendamento) ---------- */
+
+export async function criarSolicitacao(dados) {
+  const ref = await addDoc(collection(db, "solicitacoes"), {
+    agendamentoId: dados.agendamentoId || "",
+    tipo: dados.tipo || "alteracao",
+    clienteNome: dados.clienteNome || "",
+    clienteEmail: dados.clienteEmail || "",
+    dataAtual: dados.dataAtual || "",
+    horaAtual: dados.horaAtual || "",
+    dataNova: dados.dataNova || "",
+    horaNova: dados.horaNova || "",
+    motivo: dados.motivo || "",
+    status: "pendente",
+    criadoEm: serverTimestamp()
+  });
+  return ref.id;
+}
+
+/** Solicitações de um agendamento (para o cliente acompanhar). */
+export async function listarSolicitacoesDoAgendamento(agendamentoId) {
+  const snap = await getDocs(query(collection(db, "solicitacoes"), where("agendamentoId", "==", agendamentoId)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Todas as solicitações pendentes (admin). */
+export async function listarSolicitacoes() {
+  const snap = await getDocs(collection(db, "solicitacoes"));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.criadoEm?.seconds || 0) - (a.criadoEm?.seconds || 0));
+}
+
+export async function resolverSolicitacao(id, novoStatus) {
+  await updateDoc(doc(db, "solicitacoes", id), { status: novoStatus, atualizadoEm: serverTimestamp() });
+}
+
 export async function excluirAgendamento(id) {
   await deleteDoc(doc(db, "agendamentos", id));
 }

@@ -49,6 +49,15 @@ service cloud.firestore {
       allow read, write: if ehAdmin();
     }
 
+    // ---- Solicitacoes: cliente cria e ve as proprias; admin decide ----
+    match /solicitacoes/{id} {
+      allow create: if logado()
+        && request.resource.data.clienteEmail == request.auth.token.email;
+      allow read:   if ehAdmin()
+        || (logado() && resource.data.clienteEmail == request.auth.token.email);
+      allow update, delete: if ehAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

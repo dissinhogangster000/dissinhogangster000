@@ -36,19 +36,125 @@
       <button class="btn btn-secundario" id="btnLimpar">Limpar</button>
     </div>
 
+    <div id="solic" class="carregando">Carregando...</div>
+
     <div id="tabela" class="carregando">Carregando...</div>
   </main>
 
   <script type="module">
     import { iniciarPagina, toast } from "./layout.js";
     import {
-      listarAgendamentos, definirStatus, excluirAgendamento,
+      listarAgendamentos, definirStatus, excluirAgendamento, salvarAgendamento,
+      listarSolicitacoes, resolverSolicitacao, somarMinutos,
       mensagemConfirmacao, linkWhatsApp,
       formatarDataBR, formatarMoeda, escaparHtml, mensagemErro
     } from "./app.js";
 
     await iniciarPagina("agendamentos");
     const tabela = document.getElementById("tabela");
+    const boxSolic = document.getElementById("solic");
+
+    /* ---- Pedidos do cliente ---- */
+
+    async function carregarSolicitacoes() {
+      boxSolic.innerHTML = '<div class="carregando">Carregando pedidos...</div>';
+      let lista = [];
+      try {
+        lista = (await listarSolicitacoes()).filter((s) => s.status === "pendente");
+      } catch (e) {
+        boxSolic.innerHTML = `<div class="alerta alerta-erro">${escaparHtml(mensagemErro(e))}</div>`;
+        return;
+      }
+
+      boxSolic.style.display = lista.length ? "block" : "none";
+      if (!lista.length) return;
+
+      boxSolic.innerHTML = `
+        <div class="cartao">
+          <h2><i class="fas fa-bell"></i> Pedidos dos clientes (${lista.length})</h2>
+          <div class="tabela-envolve"><table>
+            <thead><tr><th>Cliente</th><th>Tipo</th><th>Atual</th><th>Pedido</th><th>Motivo</th><th></th></tr></thead>
+            <tbody>
+              ${lista.map((s) => `
+                <tr>
+                  <td><strong>${escaparHtml(s.clienteNome || "-")}</strong><br>
+                      <small style="color:#6b6b7b">${escaparHtml(s.clienteEmail || "")}</small></td>
+                  <td><span class="etiqueta etiqueta-${s.tipo === "cancelamento" ? "cancelado" : "pendente"}">${escaparHtml(s.tipo)}</span></td>
+                  <td>${formatarDataBR(s.dataAtual)}<br>${escaparHtml(s.horaAtual)}</td>
+                  <td>${s.tipo === "cancelamento" ? "<span style='color:#6b6b7b'>cancelar</span>" :
+                        `${formatarDataBR(s.dataNova)}<br>${escaparHtml(s.horaNova)}`}</td>
+                  <td>${escaparHtml(s.motivo || "-")}</td>
+                  <td>
+                    <div class="acoes">
+                      <button class="btn btn-sucesso btn-sm" data-aprovar="${s.id}" data-tipo="${s.tipo}" data-ag="${s.agendamentoId}" data-nd="${s.dataNova || ""}" data-nh="${s.horaNova || ""}">Aprovar</button>
+                      <button class="btn btn-secundario btn-sm" data-recusar="${s.id}">Recusar</button>
+                    </div>
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table></div>
+        </div>`;
+
+      boxSolic.querySelectorAll("[data-aprovar]").forEach((b) =>
+        b.onclick = async () => {
+          try {
+            const agId = b.dataset.ag;
+            if (b.dataset.tipo === "cancelamento") {
+              await definirStatus(agId, "cancelado");
+              toast("Cancelamento aprovado.");
+            } else {
+              const dia = (await listarAgendamentos({ data: b.dataset.nd }))
+                .filter((a) => a.status !== "cancelado");
+              if (dia.some((a) => a.horaInicio === b.dataset.nh)) {
+                return toast("Esse horario ja esta ocupado. Recuse e escolha outro.", "erro");
+              }
+              const original = (await listarAgendamentos({})).find((a) => a.id === agId);
+              if (!original) return toast("Agendamento nao encontrado.", "erro");
+              const duracao = Math.max(
+                15,
+                (Number(original.horaFim?.slice(0, 2)) * 60 + Number(original.horaFim?.slice(3, 5)))
+                - (Number(original.horaInicio?.slice(0, 2)) * 60 + Number(original.horaInicio?.slice(3, 5)))
+              );
+              await salvarAgendamento({
+                id: agId,
+                clienteNome: original.clienteNome,
+                clienteTelefone: original.clienteTelefone,
+                clienteEmail: original.clienteEmail,
+                servicoId: original.servicoId,
+                servicoNome: original.servicoNome,
+                data: b.dataset.nd,
+                horaInicio: b.dataset.nh,
+                horaFim: somarMinutos(b.dataset.nh, duracao),
+                status: original.status,
+                valor: original.valor,
+                observacoes: original.observacoes
+              });
+              toast("Alteracao aprovada.");
+            }
+            await resolverSolicitacao(b.dataset.aprovar, "aprovada");
+            carregarSolicitacoes();
+            carregar();
+          } catch (e) {
+            toast(mensagemErro(e), "erro");
+          }
+        }
+      );
+
+      boxSolic.querySelectorAll("[data-recusar]").forEach((b) =>
+        b.onclick = async () => {
+          if (!confirm("Recusar este pedido?")) return;
+          try {
+            await resolverSolicitacao(b.dataset.recusar, "recusada");
+            toast("Pedido recusado.");
+            carregarSolicitacoes();
+          } catch (e) {
+            toast(mensagemErro(e), "erro");
+          }
+        }
+      );
+    }
+
+    carregarSolicitacoes();
 
     async function carregar() {
       tabela.innerHTML = '<div class="carregando">Carregando...</div>';
