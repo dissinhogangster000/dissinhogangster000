@@ -282,9 +282,39 @@
         ? "Enviar ao cliente"
         : "Abrir WhatsApp (cliente sem telefone)";
       modalZap.hidden = false;
+      mostrarBarraZap(ag, texto);
     }
 
-    document.getElementById("btnZapFechar").onclick = () => { modalZap.hidden = true; };
+    // Barra fixa: sempre visivel,Some ao fechar.
+    function mostrarBarraZap(ag, texto) {
+      let barra = document.getElementById("barraZap");
+      if (!barra) {
+        barra = document.createElement("div");
+        barra.id = "barraZap";
+        barra.style.cssText =
+          "position:fixed;left:16px;right:16px;bottom:16px;z-index:200;max-width:620px;margin:0 auto;" +
+          "background:#fff;border:2px solid #25D366;border-radius:14px;padding:16px 18px;" +
+          "box-shadow:0 12px 40px rgba(0,0,0,.22);display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap";
+        document.body.appendChild(barra);
+      }
+      barra.innerHTML = `
+        <div style="flex:1;min-width:200px">
+          <strong style="color:#25D366"><i class="fab fa-whatsapp"></i> Agendamento criado!</strong>
+          <p style="margin:6px 0 0;font-size:13px;color:#6b6b7b">${escaparHtml(ag.clienteNome)} &middot; ${escaparHtml(ag.horaInicio)}</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn btn-sucesso btn-sm" href="${linkWhatsApp(ag, texto)}" target="_blank" rel="noopener">
+            <i class="fab fa-whatsapp"></i> Enviar mensagem
+          </a>
+          <button class="btn btn-secundario btn-sm" id="barraZapFechar">Fechar</button>
+        </div>`;
+      document.getElementById("barraZapFechar").onclick = () => { barra.remove(); };
+    }
+
+    document.getElementById("btnZapFechar").onclick = () => {
+      modalZap.hidden = true;
+      document.getElementById("barraZap")?.remove();
+    };
 
     document.getElementById("btnSalvar").addEventListener("click", async () => {
       const aviso = (t, k = "erro") => {
@@ -329,13 +359,11 @@
       try {
         await salvarAgendamento(ag);
         modal.hidden = true;
-        // se agendou em outra data, joga a grade para essa data
-        if (data !== campoData.value) {
-          campoData.value = data;
-        }
+        if (data !== campoData.value) campoData.value = data;
         toast("Agendamento criado. O horario ficou travado.");
         pintar();
-        abrirWhatsapp(ag);
+        try { abrirWhatsapp(ag); }
+        catch (er) { console.error("confirmacao zap:", er); }
       } catch (e) {
         aviso(mensagemErro(e));
         // se deu conflito de horario, recarrega a lista de disponiveis
