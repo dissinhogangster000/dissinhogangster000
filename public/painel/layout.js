@@ -3,6 +3,7 @@ import { observarAuth, sair, garantirPerfil } from "./app.js";
 const PAGINAS = {
   dashboard: { titulo: "Painel de Agendamento", arquivo: "dashboard.html", papeis: ["admin"] },
   agenda: { titulo: "Agenda", arquivo: "agenda.html", papeis: ["admin", "comum"] },
+  meus: { titulo: "Meus agendamentos", arquivo: "meus-agendamentos.html", papeis: ["admin", "comum"] },
   agendamentos: { titulo: "Agendamentos", arquivo: "agendamentos.html", papeis: ["admin"] },
   servicos: { titulo: "Servicos", arquivo: "servicos.html", papeis: ["admin"] },
   usuarios: { titulo: "Usuarios", arquivo: "usuarios.html", papeis: ["admin"] }
@@ -64,8 +65,9 @@ export async function iniciarPagina(chaveAtiva) {
     return null;
   }
 
-  // comum so entra na agenda
-  if (papel !== "admin" && chaveAtiva !== "agenda") {
+  // comum so entra na agenda e nos meus agendamentos
+  const COMUM = ["agenda", "meus"];
+  if (papel !== "admin" && !COMUM.includes(chaveAtiva)) {
     location.replace(INICIO.comum);
     return null;
   }

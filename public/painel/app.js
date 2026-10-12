@@ -273,6 +273,22 @@ export async function salvarAgendamento(dados) {
   return ref.id;
 }
 
+/** Agendamentos vinculados ao e-mail de um usuario (pagina "Meus agendamentos"). */
+export async function listarMeusAgendamentos(email) {
+  if (!email) return [];
+  const alvo = String(email).trim().toLowerCase();
+  const snap = await getDocs(
+    query(
+      collection(db, "agendamentos"),
+      where("clienteEmail", "==", alvo),
+      orderBy("data", "desc")
+    )
+  );
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((a) => a.status === "confirmado" || a.status === "concluido");
+}
+
 export async function definirStatus(id, status) {
   await updateDoc(doc(db, "agendamentos", id), { status, atualizadoEm: serverTimestamp() });
 }

@@ -246,9 +246,10 @@
       const data = dataPreenchida || campoData.value || hojeISO();
       modal.hidden = false;
       modalMsg.style.display = "none";
-      document.getElementById("mCliente").value = "";
+      document.getElementById("mCliente").value = usuario.displayName || "";
       document.getElementById("mTelefone").value = "";
-      document.getElementById("mEmail").value = "";
+      // usa o e-mail da conta logada para aparecer em "Meus agendamentos"
+      document.getElementById("mEmail").value = usuario.email || "";
       document.getElementById("mObs").value = "";
       document.getElementById("mData").value = data;
       await preencherHorarios(data, horaPreenchida);
@@ -343,9 +344,9 @@
       const servico = servicos.find((s) => s.id === servicoId);
 
       const ag = {
-        clienteNome: cliente,
+        clienteNome: cliente.trim(),
         clienteTelefone: document.getElementById("mTelefone").value.trim(),
-        clienteEmail: document.getElementById("mEmail").value.trim(),
+        clienteEmail: document.getElementById("mEmail").value.trim().toLowerCase(),
         servicoId,
         servicoNome: servico ? servico.nome : "",
         data,

@@ -40,6 +40,14 @@
         { "fieldPath": "data", "order": "ASCENDING" },
         { "fieldPath": "horaInicio", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "agendamentos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clienteEmail", "order": "ASCENDING" },
+        { "fieldPath": "data", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

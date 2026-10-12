@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meus agendamentos | Painel</title>
+  <link rel="stylesheet" href="painel.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+
+  <div id="topo"></div>
+
+  <main class="conteudo">
+    <div class="cabecalho-pagina">
+      <h1>Meus agendamentos confirmados</h1>
+      <p>Consulta apenas. Para alterar ou cancelar, fale com a profissional.</p>
+    </div>
+
+    <div class="cartao">
+      <div id="conta" class="alerta alerta-info" style="display:none"></div>
+    </div>
+
+    <div id="tabela" class="carregando">Carregando...</div>
+  </main>
+
+  <script type="module">
+    import { iniciarPagina, getPerfil } from "./layout.js";
+    import { listarMeusAgendamentos, formatarDataBR, formatarMoeda, escaparHtml, mensagemErro } from "./app.js";
+
+    const usuario = await iniciarPagina("meus");
+    if (!usuario) throw new Error("sem sessao");
+
+    const email = (usuario.email || "").toLowerCase();
+    const tabela = document.getElementById("tabela");
+    const conta = document.getElementById("conta");
+
+    conta.style.display = "block";
+    conta.innerHTML = `Conta consultada: <strong>${escaparHtml(email)}</strong>`;
+
+    async function carregar() {
+      tabela.innerHTML = '<div class="carregando">Carregando...</div>';
+      let lista = [];
+      try {
+        lista = await listarMeusAgendamentos(email);
+      } catch (e) {
+        tabela.innerHTML = `<div class="alerta alerta-erro">${escaparHtml(mensagemErro(e))}</div>`;
+        return;
+      }
+
+      if (!lista.length) {
+        tabela.innerHTML = `
+          <div class="cartao">
+            <div class="vazio">
+              <i class="fas fa-calendar-check"></i>
+              Nenhum agendamento confirmado no seu e-mail ainda.<br><br>
+              <span style="font-size:13px">
+                Para aparecer aqui, o agendamento precisa estar confirmado e
+                cadastrado com o e-mail <strong>${escaparHtml(email)}</strong>.
+              </span>
+            </div>
+          </div>`;
+        return;
+      }
+
+      tabela.innerHTML = `
+        <div class="tabela-envolve"><table>
+          <thead><tr><th>Data</th><th>Horario</th><th>Servico</th><th>Status</th><th>Valor</th></tr></thead>
+          <tbody>
+            ${lista.map((a) => `
+              <tr>
+                <td><strong>${formatarDataBR(a.data)}</strong></td>
+                <td>${escaparHtml(a.horaInicio)} - ${escaparHtml(a.horaFim)}</td>
+                <td>${escaparHtml(a.servicoNome || "-")}</td>
+                <td><span class="etiqueta etiqueta-${escaparHtml(a.status)}">${escaparHtml(a.status)}</span></td>
+                <td>${a.valor ? formatarMoeda(a.valor) : "-"}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table></div>
+
+        <p style="color:#6b6b7b;font-size:13px;margin-top:12px">
+          <i class="fas fa-lock"></i>
+          Esta tela e somente de consulta: nao e possivel alterar ou cancelar por aqui.
+        </p>`;
+    }
+
+    carregar();
+  </script>
+</body>
+</html>
